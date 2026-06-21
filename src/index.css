@@ -1,0 +1,197 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+.max-w-xs {
+  max-width: 20rem !important;
+}
+
+.max-w-sm {
+  max-width: 24rem !important;
+}
+
+.max-w-md {
+  max-width: 28rem !important;
+}
+
+.max-w-lg {
+  max-width: 32rem !important;
+}
+
+.max-w-xl {
+  max-width: 36rem !important;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-body-md antialiased;
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-morphism,
+.glass-card,
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(220, 252, 231, 0.5);
+}
+
+/* Visual Custom Gradients */
+.hero-gradient {
+  background: radial-gradient(circle at top right, #DCFCE7 0%, transparent 70%);
+}
+
+.timeline-gradient {
+  background: linear-gradient(180deg, #006b2c 0%, #6bff8f 100%);
+}
+
+.doctor-gradient {
+  background: linear-gradient(135deg, #006b2c 0%, #00873a 100%);
+}
+
+.primary-gradient {
+  background: linear-gradient(180deg, #059669 0%, #10b981 100%);
+}
+
+/* Custom Shadows */
+.card-shadow {
+  box-shadow: 0px 4px 20px rgba(22, 163, 74, 0.05);
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-100-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-200-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-300-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-400-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-500-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-600-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/symbols/material-symbols-outlined-latin-700-normal.woff") format("woff");
+}
+
+/* Material Symbols Adjustments */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Successful Booking Animations */
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: #006b2c;
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2;
+  stroke: #fff;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #006b2c;
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes stroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes scale {
+
+  0%,
+  100% {
+    transform: none;
+  }
+
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes fill {
+  100% {
+    box-shadow: inset 0px 0px 0px 40px #006b2c;
+  }
+}
+
+/* Confetti Styles */
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #6bff8f;
+  opacity: 0;
+  pointer-events: none;
+}
