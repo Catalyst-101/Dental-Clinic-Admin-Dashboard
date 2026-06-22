@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -21,7 +23,8 @@ const LoginPage = () => {
     setTimeout(() => {
       setStatus("success");
       setTimeout(() => {
-        alert("Login successful! Redirecting to Clinic Admin Dashboard...");
+        localStorage.setItem("isAuthenticated", "true");
+        navigate("/dashboard");
         setStatus("idle");
         setEmail("");
         setPassword("");
