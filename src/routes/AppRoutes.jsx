@@ -4,6 +4,8 @@ import { Sidebar } from "../components/Sidebar";
 import { Dashboard } from "../pages/Dashboard";
 import LoginPage from "../pages/LoginPage";
 import BookAppointment from "../pages/BookAppointment";
+import Patients from "../pages/Patients";
+
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
@@ -32,7 +34,7 @@ const Layout = () => {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/book-appointment" element={<ProtectedRoute><BookAppointment /></ProtectedRoute>} />
-          <Route path="/patients" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
           <Route path="/dentists" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/hygienists" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/surgeons" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
