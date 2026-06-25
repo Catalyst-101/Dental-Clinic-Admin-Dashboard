@@ -5,7 +5,8 @@ const TopBar = ({
   placeholder = "Search...",
   adminName = "Dr. Smith", 
   role = "Chief Administrator", 
-  avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh" 
+  avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh",
+  onSearchChange
 }) => {
   return (
     <header className="flex justify-between items-center px-6 py-2 sticky top-0 bg-surface-container-lowest/80 backdrop-blur-xl border-b border-surface-container-highest z-30 select-none">
@@ -18,6 +19,7 @@ const TopBar = ({
         <input 
           type="text" 
           placeholder={placeholder} 
+          onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
           className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-label-md w-full ml-2 text-on-surface placeholder:text-on-surface-variant/50"
         />
       </div>

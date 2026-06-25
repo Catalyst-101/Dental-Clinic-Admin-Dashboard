@@ -75,15 +75,6 @@ export default function Patients() {
               View and manage all registered patients in the clinic.
             </p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => patientTableRef.current?.openAddModal()}
-            className="bg-primary text-on-primary py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-95 transition-opacity shadow-md cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[20px]">person_add</span>
-            <span className="text-label-md">Add Patient</span>
-          </motion.button>
         </div>
 
         {/* Filter Section */}

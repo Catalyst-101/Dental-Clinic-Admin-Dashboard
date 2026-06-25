@@ -2,7 +2,7 @@ import TopBar from "../components/TopBar";
 import { StatsCard } from "../components/StatsCard";
 import { AppointmentTrends } from "../components/AppointmentTrends";
 import { PopularServices } from "../components/PopularServices";
-import { PatientTable } from "../components/PatientTable";
+import { AppointmentsTable } from "../components/AppointmentsTable";
 
 export const Dashboard = () => {
   return (
@@ -69,7 +69,7 @@ export const Dashboard = () => {
 
           <div className="gap-md items-start">
             <div className="w-full">
-              <PatientTable isDashboard={true} />
+              <AppointmentsTable isDashboard={true} />
             </div>
           </div>
 

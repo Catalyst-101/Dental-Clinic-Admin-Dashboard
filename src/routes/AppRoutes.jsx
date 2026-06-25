@@ -5,6 +5,11 @@ import { Dashboard } from "../pages/Dashboard";
 import LoginPage from "../pages/LoginPage";
 import BookAppointment from "../pages/BookAppointment";
 import Patients from "../pages/Patients";
+import Appointments from "../pages/Appointments";
+import Doctors from "../pages/Doctors";
+import Services from "../pages/Services";
+import WebsiteContent from "../pages/WebsiteContent";
+import Settings from "../pages/Settings";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -35,13 +40,14 @@ const Layout = () => {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/book-appointment" element={<ProtectedRoute><BookAppointment /></ProtectedRoute>} />
           <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
-          <Route path="/dentists" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/hygienists" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/surgeons" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/receptionists" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/appointments" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/services" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dentists" element={<ProtectedRoute><Doctors defaultCategory="Dentist" /></ProtectedRoute>} />
+          <Route path="/hygienists" element={<ProtectedRoute><Doctors defaultCategory="Hygienist" /></ProtectedRoute>} />
+          <Route path="/surgeons" element={<ProtectedRoute><Doctors defaultCategory="Surgeon" /></ProtectedRoute>} />
+          <Route path="/receptionists" element={<ProtectedRoute><Doctors defaultCategory="Receptionist" /></ProtectedRoute>} />
+          <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+          <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+          <Route path="/content" element={<ProtectedRoute><WebsiteContent /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>

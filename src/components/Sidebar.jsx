@@ -43,6 +43,11 @@ export const Sidebar = ({ onLogout, onNewAppointment }) => {
             icon: "health_and_safety"
         },
         {
+            id: "content",
+            label: "Website Content",
+            icon: "edit_note"
+        },
+        {
             id: "settings",
             label: "Settings",
             icon: "settings"
