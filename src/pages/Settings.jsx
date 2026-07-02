@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
+import { apiFetch } from "../utils/apiClient";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("general");
@@ -53,19 +54,76 @@ export default function Settings() {
     confirmPassword: "",
     twoFactorEnabled: true
   });
+  const [securityError, setSecurityError] = useState("");
 
   // Track changes to show unsaved badge
   const markDirty = () => {
     setIsDirty(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsDirty(false);
-      setToastMessage("Settings updated successfully (UI demo only)!");
-    }, 1200);
+    setSecurityError("");
+
+    if (activeTab === "security") {
+      // Validate inputs on frontend first
+      if (!securitySettings.currentPassword) {
+        setSecurityError("Current password is required.");
+        setIsLoading(false);
+        return;
+      }
+      if (!securitySettings.newPassword) {
+        setSecurityError("New password is required.");
+        setIsLoading(false);
+        return;
+      }
+      if (securitySettings.newPassword.length < 6) {
+        setSecurityError("New password must be at least 6 characters long.");
+        setIsLoading(false);
+        return;
+      }
+      if (securitySettings.newPassword !== securitySettings.confirmPassword) {
+        setSecurityError("Passwords do not match.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const data = await apiFetch("/api/auth/change-password", {
+          method: "PATCH",
+          body: {
+            currentPassword: securitySettings.currentPassword,
+            newPassword: securitySettings.newPassword,
+            confirmPassword: securitySettings.confirmPassword
+          }
+        });
+
+        // Save new token to wherever it was currently stored
+        const rememberMe = localStorage.getItem("token") !== null;
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem("token", data.token);
+
+        setToastMessage("Password changed successfully!");
+        setSecuritySettings({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+          twoFactorEnabled: securitySettings.twoFactorEnabled
+        });
+        setIsDirty(false);
+      } catch (error) {
+        const backendError = error.response?.message || error.response?.errors?.[0]?.message || error.message || "Failed to change password.";
+        setSecurityError(backendError);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsDirty(false);
+        setToastMessage("Settings updated successfully (UI demo only)!");
+      }, 1200);
+    }
   };
 
   const handleDiscard = () => {
@@ -129,6 +187,7 @@ export default function Settings() {
 
   const handleSecurityChange = (field, val) => {
     setSecuritySettings((prev) => ({ ...prev, [field]: val }));
+    setSecurityError("");
     markDirty();
   };
 
@@ -508,6 +567,12 @@ export default function Settings() {
                       />
                     </div>
                   </div>
+
+                  {securityError && (
+                    <p className="text-sm text-error font-medium mt-2">
+                      {securityError}
+                    </p>
+                  )}
 
                   {/* Two Factor Switch */}
                   <div className="flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-xs select-none">

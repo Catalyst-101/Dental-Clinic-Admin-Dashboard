@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/Button";
+import { apiFetch } from "../utils/apiClient";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -10,26 +11,35 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const togglePassword = () => {
     setShowPassword(!showPassword);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (status !== "idle") return;
-    setStatus("loading");
 
-    setTimeout(() => {
+    setStatus("loading");
+    setErrorMessage("");
+
+    try {
+      const data = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: { email, password, rememberMe }
+      });
+
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("token", data.token);
+      storage.setItem("isAuthenticated", "true");
+      storage.setItem("user", JSON.stringify(data.user || {}));
       setStatus("success");
-      setTimeout(() => {
-        localStorage.setItem("isAuthenticated", "true");
-        navigate("/dashboard");
-        setStatus("idle");
-        setEmail("");
-        setPassword("");
-      }, 1000);
-    }, 1500);
+      navigate("/dashboard");
+    } catch (error) {
+      setStatus("idle");
+      setErrorMessage(error.response?.message || error.message || "Login failed. Please try again.");
+    }
   };
 
   return (
@@ -166,6 +176,11 @@ const LoginPage = () => {
                 {status === "success" && "Access Granted ✓"}
               </Button>
             </motion.div>
+            {errorMessage && (
+              <p className="mt-3 text-sm text-error font-medium">
+                {errorMessage}
+              </p>
+            )}
           </form>
 
           <div className="mt-lg pt-md border-t border-outline-variant flex flex-col gap-sm items-center">

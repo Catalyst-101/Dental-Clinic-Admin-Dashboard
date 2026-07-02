@@ -3,11 +3,16 @@ import { motion } from "framer-motion";
 
 const TopBar = ({ 
   placeholder = "Search...",
-  adminName = "Dr. Smith", 
-  role = "Chief Administrator", 
+  adminName, 
+  role, 
   avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh",
   onSearchChange
 }) => {
+  const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
+  const storedUser = storedUserJson ? JSON.parse(storedUserJson) : null;
+
+  const displayAdminName = adminName || storedUser?.name || "Dr. Smith";
+  const displayRole = role || (storedUser?.role === "superadmin" ? "Super Admin" : (storedUser?.role === "admin" ? "Admin" : "Chief Administrator"));
   return (
     <header className="flex justify-between items-center px-6 py-2 sticky top-0 bg-surface-container-lowest/80 backdrop-blur-xl border-b border-surface-container-highest z-30 select-none">
       
@@ -55,8 +60,8 @@ const TopBar = ({
         {/* Profile Card Separated by Vertical Divider */}
         <div className="flex items-center gap-3 pl-4 border-l border-surface-container-highest">
           <div className="text-right hidden sm:block">
-            <p className="font-label-md text-label-md text-on-surface font-semibold">{adminName}</p>
-            <p className="font-label-sm text-label-sm text-on-surface-variant opacity-80 mt-0.5">{role}</p>
+            <p className="font-label-md text-label-md text-on-surface font-semibold">{displayAdminName}</p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant opacity-80 mt-0.5">{displayRole}</p>
           </div>
           
           <motion.img 

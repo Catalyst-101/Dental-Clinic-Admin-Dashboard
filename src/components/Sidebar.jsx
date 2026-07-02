@@ -54,8 +54,23 @@ export const Sidebar = ({ onLogout, onNewAppointment }) => {
         },
     ];
 
+    // Retrieve user and dynamically show Admins tab for superadmin
+    const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
+    const storedUser = storedUserJson ? JSON.parse(storedUserJson) : null;
+    const isSuperAdmin = storedUser?.role === "superadmin";
+
+    const visibleMenuItems = [...menuItems];
+    if (isSuperAdmin) {
+        // Insert Admins link right before Settings (which is at the index visibleMenuItems.length - 1)
+        visibleMenuItems.splice(visibleMenuItems.length - 1, 0, {
+            id: "admins",
+            label: "Admins",
+            icon: "admin_panel_settings"
+        });
+    }
+
     // Safely extract sub-item IDs to check if any child of 'staff' is currently active
-    const staffItem = menuItems.find((item) => item.id === "staff");
+    const staffItem = visibleMenuItems.find((item) => item.id === "staff");
     const staffSubIds = staffItem?.subItems?.map((sub) => sub.id) || [];
     const isStaffChildActive = staffSubIds.includes(activeItem);
 
@@ -79,7 +94,7 @@ export const Sidebar = ({ onLogout, onNewAppointment }) => {
 
             { }
             <nav className="flex-1 space-y-1.5 px-2 overflow-y-auto">
-                {menuItems.map((item) => {
+                {visibleMenuItems.map((item) => {
                     const isItemActive = activeItem === item.id;
                     const isParentActive = item.id === "staff" && isStaffChildActive;
                     const isSelected = isItemActive || isParentActive;
