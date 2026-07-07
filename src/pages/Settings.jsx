@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
+import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
 import { apiFetch } from "../utils/apiClient";
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isDirty, setIsDirty] = useState(false);
@@ -17,7 +18,39 @@ export default function Settings() {
     }
   }, [toastMessage]);
 
-  // Form States
+  // Profile States
+  const [profileSettings, setProfileSettings] = useState({
+    name: "",
+    username: "",
+    email: "",
+    profilePicture: ""
+  });
+
+  // Fetch live admin data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await apiFetch("/api/auth/me");
+        if (data.success && data.user) {
+          setProfileSettings({
+            name: data.user.name || "",
+            username: data.user.username || "",
+            email: data.user.email || "",
+            profilePicture: data.user.profilePicture || ""
+          });
+          setSecuritySettings((prev) => ({
+            ...prev,
+            twoFactorEnabled: !!data.user.twoFactorEnabled
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch administrator details:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Form States (Clinic Information Mockup Settings)
   const [generalSettings, setGeneralSettings] = useState({
     clinicName: "DentaElite Premium Care",
     clinicDescription: "Providing world-class restorative and aesthetic dentistry services in a premium, patient-focused environment. We combine state-of-the-art technology with high-end hospitality.",
@@ -52,67 +85,280 @@ export default function Settings() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-    twoFactorEnabled: true
+    twoFactorEnabled: false
   });
   const [securityError, setSecurityError] = useState("");
 
-  // Track changes to show unsaved badge
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Forced password change state
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+
+  // 2FA Setup Modal States
+  const [is2faModalOpen, setIs2faModalOpen] = useState(false);
+  const [mfaSetupData, setMfaSetupData] = useState(null); // { secret, qrCodeUrl }
+  const [mfaOtp, setMfaOtp] = useState("");
+  const [mfaPassword, setMfaPassword] = useState("");
+  const [showMfaPassword, setShowMfaPassword] = useState(false);
+  const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState([]);
+  const [mfaStep, setMfaStep] = useState(1); // 1: setup, 2: recovery codes
+
+  // 2FA Disable Modal States
+  const [isMfaDisableOpen, setIsMfaDisableOpen] = useState(false);
+  const [mfaDisablePassword, setMfaDisablePassword] = useState("");
+  const [showMfaDisablePassword, setShowMfaDisablePassword] = useState(false);
+
+  // Check if forced password change is required on mount
+  useEffect(() => {
+    const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
+    const storedUser = storedUserJson ? JSON.parse(storedUserJson) : null;
+    if (storedUser && storedUser.mustChangePassword) {
+      setMustChangePassword(true);
+      setActiveTab("security"); // Force redirect to security tab
+    }
+  }, []);
+
+  // Initiate 2FA Setup Flow
+  const initiate2faSetup = async () => {
+    setIsLoading(true);
+    setSecurityError("");
+    try {
+      const data = await apiFetch("/api/auth/2fa/setup", {
+        method: "POST"
+      });
+      if (data.success) {
+        setMfaSetupData(data);
+        setMfaStep(1);
+        setMfaOtp("");
+        setMfaPassword("");
+        setShowMfaPassword(false);
+        setIs2faModalOpen(true);
+      }
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to initiate 2FA setup.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Submit 2FA Verification and Enablement
+  const handle2faEnableSubmit = async (e) => {
+    e.preventDefault();
+    if (!mfaOtp || !mfaPassword) {
+      alert("Verification code and password are required.");
+      return;
+    }
+    setIsLoading(true);
+    setSecurityError("");
+    try {
+      const data = await apiFetch("/api/auth/2fa/enable", {
+        method: "POST",
+        body: { otp: mfaOtp, password: mfaPassword }
+      });
+      if (data.success) {
+        setMfaRecoveryCodes(data.recoveryCodes || []);
+        setSecuritySettings((prev) => ({ ...prev, twoFactorEnabled: true }));
+
+        // Sync local user storage
+        const rememberMe = localStorage.getItem("token") !== null;
+        const storage = rememberMe ? localStorage : sessionStorage;
+        const storedUser = JSON.parse(storage.getItem("user") || "{}");
+        storedUser.twoFactorEnabled = true;
+        storage.setItem("user", JSON.stringify(storedUser));
+        window.dispatchEvent(new Event("storage"));
+
+        setMfaStep(2); // move to recovery codes view
+      }
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to enable 2FA.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Submit 2FA Disable
+  const handle2faDisableSubmit = async (e) => {
+    e.preventDefault();
+    if (!mfaDisablePassword) {
+      alert("Password is required to disable 2FA.");
+      return;
+    }
+    setIsLoading(true);
+    setSecurityError("");
+    try {
+      const data = await apiFetch("/api/auth/2fa/disable", {
+        method: "POST",
+        body: { password: mfaDisablePassword }
+      });
+      if (data.success) {
+        setSecuritySettings((prev) => ({ ...prev, twoFactorEnabled: false }));
+
+        // Sync local user storage
+        const rememberMe = localStorage.getItem("token") !== null;
+        const storage = rememberMe ? localStorage : sessionStorage;
+        const storedUser = JSON.parse(storage.getItem("user") || "{}");
+        storedUser.twoFactorEnabled = false;
+        storage.setItem("user", JSON.stringify(storedUser));
+        window.dispatchEvent(new Event("storage"));
+
+        setToastMessage("Two-factor authentication disabled successfully!");
+        setIsMfaDisableOpen(false);
+      }
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to disable 2FA.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const markDirty = () => {
     setIsDirty(true);
+  };
+
+  const handleProfileChange = (field, val) => {
+    setProfileSettings((prev) => ({ ...prev, [field]: val }));
+    markDirty();
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    setIsLoading(true);
+    try {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await fetch(`${BASE_URL}/api/auth/profile-picture`, {
+        method: "POST",
+        headers,
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to upload avatar");
+      }
+      setProfileSettings((prev) => ({ ...prev, profilePicture: data.url }));
+      markDirty();
+      setToastMessage("Avatar image uploaded successfully!");
+    } catch (err) {
+      alert(err.message || "Failed to upload avatar.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAvatarRemove = () => {
+    handleProfileChange("profilePicture", "");
+    setToastMessage("Avatar removed.");
   };
 
   const handleSave = async () => {
     setIsLoading(true);
     setSecurityError("");
 
-    if (activeTab === "security") {
-      // Validate inputs on frontend first
-      if (!securitySettings.currentPassword) {
-        setSecurityError("Current password is required.");
+    if (activeTab === "profile") {
+      if (!profileSettings.name.trim()) {
+        alert("Name is required.");
         setIsLoading(false);
         return;
       }
-      if (!securitySettings.newPassword) {
-        setSecurityError("New password is required.");
-        setIsLoading(false);
-        return;
-      }
-      if (securitySettings.newPassword.length < 6) {
-        setSecurityError("New password must be at least 6 characters long.");
-        setIsLoading(false);
-        return;
-      }
-      if (securitySettings.newPassword !== securitySettings.confirmPassword) {
-        setSecurityError("Passwords do not match.");
+      if (!profileSettings.username.trim()) {
+        alert("Username is required.");
         setIsLoading(false);
         return;
       }
 
       try {
-        const data = await apiFetch("/api/auth/change-password", {
-          method: "PATCH",
+        const data = await apiFetch("/api/auth/profile", {
+          method: "PUT",
           body: {
-            currentPassword: securitySettings.currentPassword,
-            newPassword: securitySettings.newPassword,
-            confirmPassword: securitySettings.confirmPassword
+            name: profileSettings.name,
+            username: profileSettings.username,
+            profilePicture: profileSettings.profilePicture
           }
         });
 
-        // Save new token to wherever it was currently stored
         const rememberMe = localStorage.getItem("token") !== null;
         const storage = rememberMe ? localStorage : sessionStorage;
-        storage.setItem("token", data.token);
+        storage.setItem("user", JSON.stringify(data.user));
 
-        setToastMessage("Password changed successfully!");
-        setSecuritySettings({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-          twoFactorEnabled: securitySettings.twoFactorEnabled
-        });
+        window.dispatchEvent(new Event("storage"));
+        setToastMessage("Admin profile updated successfully!");
         setIsDirty(false);
       } catch (error) {
-        const backendError = error.response?.message || error.response?.errors?.[0]?.message || error.message || "Failed to change password.";
+        const msg = error.response?.message || error.message || "Failed to update profile.";
+        alert(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    } else if (activeTab === "security") {
+      try {
+        // Process password change if inputs filled
+        if (
+          securitySettings.currentPassword ||
+          securitySettings.newPassword ||
+          securitySettings.confirmPassword
+        ) {
+          if (!securitySettings.currentPassword) {
+            setSecurityError("Current password is required to change password.");
+            setIsLoading(false);
+            return;
+          }
+          if (!securitySettings.newPassword) {
+            setSecurityError("New password is required.");
+            setIsLoading(false);
+            return;
+          }
+          if (securitySettings.newPassword.length < 8) {
+            setSecurityError("New password must be at least 8 characters.");
+            setIsLoading(false);
+            return;
+          }
+          if (securitySettings.newPassword !== securitySettings.confirmPassword) {
+            setSecurityError("Passwords do not match.");
+            setIsLoading(false);
+            return;
+          }
+
+          const data = await apiFetch("/api/auth/change-password", {
+            method: "PATCH",
+            body: {
+              currentPassword: securitySettings.currentPassword,
+              newPassword: securitySettings.newPassword,
+              confirmPassword: securitySettings.confirmPassword
+            }
+          });
+
+          const rememberMe = localStorage.getItem("token") !== null;
+          const storage = rememberMe ? localStorage : sessionStorage;
+          storage.setItem("token", data.token);
+          setSecuritySettings((prev) => ({
+            ...prev,
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: ""
+          }));
+
+          setToastMessage("Password updated successfully!");
+          setMustChangePassword(false);
+          setIsDirty(false);
+
+          // Clear mustChangePassword in stored user object
+          const storedUser = JSON.parse(storage.getItem("user") || "{}");
+          storedUser.mustChangePassword = false;
+          storage.setItem("user", JSON.stringify(storedUser));
+          window.dispatchEvent(new Event("storage"));
+        } else {
+          setIsDirty(false);
+        }
+      } catch (error) {
+        const backendError = error.response?.message || error.response?.errors?.[0]?.message || error.message || "Failed to save security settings.";
         setSecurityError(backendError);
       } finally {
         setIsLoading(false);
@@ -126,41 +372,31 @@ export default function Settings() {
     }
   };
 
-  const handleDiscard = () => {
-    setGeneralSettings({
-      clinicName: "DentaElite Premium Care",
-      clinicDescription: "Providing world-class restorative and aesthetic dentistry services in a premium, patient-focused environment. We combine state-of-the-art technology with high-end hospitality.",
-      logoUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuB5x3fsFR2dpzcw9XWJta6FvDyglaUrpXfxOtwSR6XWH5r3ulJXyPO4DuboJetQlno9F27iy-oWVFf5YC9ILA3IemwTVxIWfeTLqObtOkQHPYxFrebWF1kb58NDgdKarpW63BWZxnpcQJ7YOEoBAv0F_-ZhZtj13QpAfFb0CencZ4cXy1a0Byr736PFKK4pskJZBMzE6CPgHVsbYeih1cT3kz6wELtHqosEyeTPPU5OV9yThkl-h6UrebW2caITr1LAhjdD4GZzgmwd"
-    });
-    setContactSettings({
-      address: "742 Medical Mile, Suite 200, Beverly Hills, CA 90210",
-      phone: "+1 (555) 012-3456",
-      whatsApp: "+1 (555) 012-3456",
-      email: "hello@dentaelite.care",
-      googleMapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.6175394982635!2d-73.98774768459392!3d40.748440479328224!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c259a9b3117469%3A0xd134e199a405a163!2sEmpire%20State%20Building!5e0!3m2!1sen!2sus!4v1655000000000!5m2!1sen!2sus"
-    });
-    setSocialSettings({
-      whatsApp: "https://wa.me/15550123456",
-      facebook: "https://facebook.com/dentaelite",
-      instagram: "https://instagram.com/dentaelite"
-    });
-    setBusinessHours([
-      { day: "Monday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-      { day: "Tuesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-      { day: "Wednesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-      { day: "Thursday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-      { day: "Friday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-      { day: "Saturday", open: "09:00 AM", close: "02:00 PM", isClosed: false },
-      { day: "Sunday", open: "09:00 AM", close: "12:00 PM", isClosed: true }
-    ]);
-    setSecuritySettings({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-      twoFactorEnabled: true
-    });
-    setIsDirty(false);
-    setToastMessage("Changes discarded. Settings reset to live configuration.");
+  const handleDiscard = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiFetch("/api/auth/me");
+      if (data.success && data.user) {
+        setProfileSettings({
+          name: data.user.name || "",
+          username: data.user.username || "",
+          email: data.user.email || "",
+          profilePicture: data.user.profilePicture || ""
+        });
+        setSecuritySettings({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+          twoFactorEnabled: !!data.user.twoFactorEnabled
+        });
+      }
+      setIsDirty(false);
+      setToastMessage("Changes discarded. Profile settings re-synced.");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGeneralChange = (field, val) => {
@@ -208,11 +444,12 @@ export default function Settings() {
   };
 
   const menuTabs = [
-    { id: "general", label: "General", icon: "tune" },
-    { id: "contact", label: "Contact", icon: "alternate_email" },
+    { id: "profile", label: "Admin Profile", icon: "person" },
+    { id: "general", label: "Clinic Profile", icon: "tune" },
+    { id: "contact", label: "Contact Info", icon: "alternate_email" },
     { id: "social", label: "Social Connect", icon: "share" },
     { id: "hours", label: "Business Hours", icon: "schedule" },
-    { id: "security", label: "Security", icon: "shield" }
+    { id: "security", label: "Security & 2FA", icon: "shield" }
   ];
 
   const timeOptions = [
@@ -245,12 +482,18 @@ export default function Settings() {
             {menuTabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-label-md font-bold transition-all cursor-pointer ${
-                  activeTab === tab.id
+                onClick={() => {
+                  if (mustChangePassword && tab.id !== "security") {
+                    setSecurityError("You must update your temporary password before configuring other settings.");
+                    setToastMessage("Please update your password first!");
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
+                className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-label-md font-bold transition-all cursor-pointer ${activeTab === tab.id
                     ? "bg-primary text-on-primary shadow-sm"
                     : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
                 {tab.label}
@@ -260,12 +503,112 @@ export default function Settings() {
 
           {/* Form Content Panel */}
           <div className="space-y-6">
-            {/* GENERAL TAB */}
+
+            {/* ADMIN PROFILE TAB */}
+            {activeTab === "profile" && (
+              <section className="glass-card rounded-2xl p-6 border border-outline-variant/30 text-left space-y-6">
+                <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-3 select-none">
+                  <span className="material-symbols-outlined text-primary text-[28px]">person</span>
+                  <h2 className="text-headline-sm font-extrabold text-on-surface">Admin Profile Settings</h2>
+                </div>
+
+                {/* Avatar Upload */}
+                <div className="flex items-center gap-6 p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xs">
+                  <div className="w-24 h-24 rounded-xl bg-primary-container/10 flex items-center justify-center border-2 border-dashed border-primary/30 group cursor-pointer hover:bg-primary-container/20 transition-all overflow-hidden relative shadow-sm select-none">
+                    {profileSettings.profilePicture ? (
+                      <img
+                        alt="Admin Avatar Preview"
+                        className="w-full h-full object-cover"
+                        src={profileSettings.profilePicture.startsWith("/uploads")
+                          ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${profileSettings.profilePicture}`
+                          : profileSettings.profilePicture
+                        }
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profileSettings.name)}` }}
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined text-primary/50 text-3xl">person</span>
+                    )}
+                    <label className="absolute inset-0 bg-primary/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <span className="material-symbols-outlined text-white">upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
+                  </div>
+                  <div className="space-y-1.5 select-none">
+                    <p className="text-label-md font-bold text-on-surface">Profile picture</p>
+                    <p className="text-xs text-on-surface-variant leading-relaxed">PNG, JPG or SVG. Max 2MB.</p>
+                    <div className="flex gap-4 pt-1">
+                      <label className="text-label-sm font-bold text-primary hover:underline cursor-pointer">
+                        Upload Image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                      </label>
+                      {profileSettings.profilePicture && (
+                        <button
+                          onClick={handleAvatarRemove}
+                          className="text-label-sm font-bold text-error hover:underline cursor-pointer"
+                        >
+                          Remove Image
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1 text-left">
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="profile-name">Full Name</label>
+                      <input
+                        id="profile-name"
+                        type="text"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        value={profileSettings.name}
+                        onChange={(e) => handleProfileChange("name", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1 text-left">
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="profile-username">Username</label>
+                      <input
+                        id="profile-username"
+                        type="text"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        value={profileSettings.username}
+                        onChange={(e) => handleProfileChange("username", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-left">
+                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="profile-email">Email Address</label>
+                    <input
+                      id="profile-email"
+                      type="email"
+                      disabled
+                      className="w-full bg-surface-container/50 border border-outline-variant rounded-lg p-3 text-body-md font-semibold text-on-surface-variant/70 cursor-not-allowed"
+                      value={profileSettings.email}
+                    />
+                    <p className="text-[10px] text-on-surface-variant/60 font-semibold italic">Email cannot be changed after administrator onboarding.</p>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* CLINIC GENERAL TAB */}
             {activeTab === "general" && (
               <section className="glass-card rounded-2xl p-6 border border-outline-variant/30 text-left space-y-6">
                 <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-3 select-none">
                   <span className="material-symbols-outlined text-primary text-[28px]">tune</span>
-                  <h2 className="text-headline-sm font-extrabold text-on-surface">General Information</h2>
+                  <h2 className="text-headline-sm font-extrabold text-on-surface">Clinic Information</h2>
                 </div>
 
                 {/* Logo Upload Box */}
@@ -489,7 +832,7 @@ export default function Settings() {
                   {businessHours.map((item, idx) => (
                     <div key={item.day} className="flex flex-wrap items-center justify-between gap-4 p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/20 shadow-xs">
                       <span className="w-28 font-extrabold text-on-surface text-body-md select-none">{item.day}</span>
-                      
+
                       <div className="flex items-center gap-3 flex-1 justify-end max-w-lg">
                         <select
                           disabled={item.isClosed}
@@ -533,38 +876,69 @@ export default function Settings() {
                   <h2 className="text-headline-sm font-extrabold text-on-surface">Security &amp; Credentials</h2>
                 </div>
 
+                {mustChangePassword && (
+                  <div className="p-4 bg-error-container/20 text-on-error-container border border-error/20 rounded-2xl flex items-start gap-3 shadow-sm select-none">
+                    <span className="material-symbols-outlined text-error text-[28px]">warning</span>
+                    <div className="space-y-1">
+                      <p className="font-bold text-label-md">Temporary Password Detected</p>
+                      <p className="text-xs opacity-90">You are currently logged in using a temporary password. For security reasons, you must update your password below before you can access other settings.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="curr-pass">Current Password</label>
-                    <input
-                      id="curr-pass"
-                      type="password"
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      value={securitySettings.currentPassword}
-                      onChange={(e) => handleSecurityChange("currentPassword", e.target.value)}
-                    />
+                    <div className="relative">
+                      <input
+                        id="curr-pass"
+                        type={showCurrentPassword ? "text" : "password"}
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 pr-12 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        value={securitySettings.currentPassword}
+                        onChange={(e) => handleSecurityChange("currentPassword", e.target.value)}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer focus:outline-none flex items-center justify-center"
+                      >
+                        <span className="material-symbols-outlined text-[20px] select-none">
+                          {showCurrentPassword ? "visibility_off" : "visibility"}
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="new-pass">New Password</label>
-                      <input
-                        id="new-pass"
-                        type="password"
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        value={securitySettings.newPassword}
-                        onChange={(e) => handleSecurityChange("newPassword", e.target.value)}
-                      />
-                    </div>
+                    <PasswordStrengthInput
+                      value={securitySettings.newPassword}
+                      onChange={(e) => handleSecurityChange("newPassword", e.target.value)}
+                      label="New Password"
+                      id="new-pass"
+                    />
+
                     <div className="space-y-1">
                       <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="conf-pass">Confirm Password</label>
-                      <input
-                        id="conf-pass"
-                        type="password"
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        value={securitySettings.confirmPassword}
-                        onChange={(e) => handleSecurityChange("confirmPassword", e.target.value)}
-                      />
+                      <div className="relative">
+                        <input
+                          id="conf-pass"
+                          type={showConfirmPassword ? "text" : "password"}
+                          className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 pr-12 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          value={securitySettings.confirmPassword}
+                          onChange={(e) => handleSecurityChange("confirmPassword", e.target.value)}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer focus:outline-none flex items-center justify-center"
+                        >
+                          <span className="material-symbols-outlined text-[20px] select-none">
+                            {showConfirmPassword ? "visibility_off" : "visibility"}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -573,28 +947,6 @@ export default function Settings() {
                       {securityError}
                     </p>
                   )}
-
-                  {/* Two Factor Switch */}
-                  <div className="flex items-center justify-between p-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-xs select-none">
-                    <div className="space-y-0.5 text-left pr-4">
-                      <p className="text-label-md font-bold text-on-surface">Two-Factor Authentication (2FA)</p>
-                      <p className="text-xs text-on-surface-variant">Use an authenticator app (Google Authenticator, Duo) to generate secure login verification codes.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSecurityChange("twoFactorEnabled", !securitySettings.twoFactorEnabled)}
-                      className={`relative w-12 h-6.5 rounded-full flex items-center p-0.5 transition-colors cursor-pointer focus:outline-none ${
-                        securitySettings.twoFactorEnabled ? "bg-primary" : "bg-outline-variant"
-                      }`}
-                    >
-                      <motion.div
-                        layout
-                        className="w-5.5 h-5.5 rounded-full bg-white shadow-sm"
-                        animate={{ x: securitySettings.twoFactorEnabled ? 22 : 0 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    </button>
-                  </div>
                 </div>
               </section>
             )}

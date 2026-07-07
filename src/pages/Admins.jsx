@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
+import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
 import { apiFetch } from "../utils/apiClient";
 
 export default function Admins() {
@@ -27,6 +28,8 @@ export default function Admins() {
     password: "",
     role: "admin"
   });
+
+
 
   // Verify Role & Fetch Admins on Mount
   useEffect(() => {
@@ -69,10 +72,11 @@ export default function Admins() {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
+  // Handle administrator account creation
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("Name, email, and password are required.");
+    if (!formData.name || !formData.email) {
+      alert("Name and email are required.");
       return;
     }
 
@@ -103,7 +107,6 @@ export default function Admins() {
     setIsLoading(true);
     setErrorMessage("");
     
-    // Prepare payload (do not send empty password)
     const payload = {
       name: formData.name,
       email: formData.email,
@@ -162,7 +165,7 @@ export default function Admins() {
     setFormData({
       name: admin.name,
       email: admin.email,
-      password: "", // Keep password field empty by default
+      password: "", 
       role: admin.role
     });
     setErrorMessage("");
@@ -180,6 +183,7 @@ export default function Admins() {
     return (
       admin.name.toLowerCase().includes(query) ||
       admin.email.toLowerCase().includes(query) ||
+      (admin.username && admin.username.toLowerCase().includes(query)) ||
       admin.role.toLowerCase().includes(query)
     );
   });
@@ -198,7 +202,7 @@ export default function Admins() {
             <h1 className="text-headline-md font-headline-md text-on-surface font-extrabold tracking-tight">
               Admin Management
             </h1>
-            <p className="text-body-md text-on-surface-variant opacity-80">
+            <p className="text-body-md text-on-surface-variant opacity-80 text-left">
               Manage database administrators, assign access roles, and audit security credentials.
             </p>
           </div>
@@ -217,7 +221,7 @@ export default function Admins() {
 
         {/* Global Error Banner */}
         {errorMessage && (
-          <div className="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 font-semibold text-sm">
+          <div className="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 font-semibold text-sm text-left">
             {errorMessage}
           </div>
         )}
@@ -228,7 +232,8 @@ export default function Admins() {
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant/35 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider select-none">
-                  <th className="px-6 py-4">Administrator Name</th>
+                  <th className="px-6 py-4">Administrator</th>
+                  <th className="px-6 py-4">Username</th>
                   <th className="px-6 py-4">Email Address</th>
                   <th className="px-6 py-4">Security Role</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -237,14 +242,14 @@ export default function Admins() {
               <tbody className="divide-y divide-outline-variant/15 text-body-md">
                 {isLoading && admins.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center py-8 text-on-surface-variant">
+                    <td colSpan="5" className="text-center py-8 text-on-surface-variant">
                       <span className="material-symbols-outlined animate-spin text-2xl">progress_activity</span>
                       <p className="mt-2 text-xs font-bold uppercase tracking-wider">Loading administrators...</p>
                     </td>
                   </tr>
                 ) : filteredAdmins.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="text-center py-8 text-on-surface-variant">
+                    <td colSpan="5" className="text-center py-8 text-on-surface-variant">
                       <span className="material-symbols-outlined text-3xl">sentiment_dissatisfied</span>
                       <p className="mt-2 text-xs font-bold uppercase tracking-wider">No administrators found</p>
                     </td>
@@ -255,12 +260,19 @@ export default function Admins() {
                       <td className="px-6 py-4 font-bold text-on-surface">
                         <div className="flex items-center gap-3">
                           <img
-                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(admin.name)}`}
+                            src={admin.profilePicture && admin.profilePicture.startsWith("/uploads")
+                              ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${admin.profilePicture}`
+                              : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(admin.name)}`
+                            }
                             alt="avatar"
-                            className="w-8 h-8 rounded-full bg-primary-container/10 border border-primary/20"
+                            className="w-8 h-8 rounded-full bg-primary-container/10 border border-primary/20 object-cover"
+                            onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(admin.name)}` }}
                           />
                           {admin.name}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-sm text-primary font-semibold">
+                        {admin.username || <span className="opacity-40 italic text-xs">pending...</span>}
                       </td>
                       <td className="px-6 py-4 font-semibold text-on-surface-variant">
                         {admin.email}
@@ -321,9 +333,18 @@ export default function Admins() {
               initial={{ scale: 0.95, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
-              className="w-full max-w-md bg-surface-container-low rounded-2xl p-6 border border-outline-variant/30 shadow-2xl z-10 text-left"
+              className="w-full max-w-md bg-surface-container-low rounded-2xl p-6 border border-outline-variant/30 shadow-2xl z-10 text-left space-y-4"
             >
-              <h3 className="text-headline-sm font-extrabold text-on-surface mb-4">Add Administrator</h3>
+              <div className="flex justify-between items-center border-b border-outline-variant/20 pb-3 select-none">
+                <h3 className="text-headline-sm font-extrabold text-on-surface">Add Administrator</h3>
+              </div>
+
+              {errorMessage && (
+                <div className="p-3 text-xs bg-error-container text-on-error-container font-semibold rounded-lg">
+                  {errorMessage}
+                </div>
+              )}
+
               <form onSubmit={handleCreateSubmit} className="space-y-4">
                 <div>
                   <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
@@ -331,9 +352,10 @@ export default function Admins() {
                     id="name"
                     required
                     type="text"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
                     value={formData.name}
                     onChange={handleInputChange}
+                    placeholder="e.g. Saad Karim"
                   />
                 </div>
                 <div>
@@ -342,27 +364,30 @@ export default function Admins() {
                     id="email"
                     required
                     type="email"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
                     value={formData.email}
                     onChange={handleInputChange}
+                    placeholder="saad@dentaelite.com"
                   />
                 </div>
                 <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="password">Temporary Password</label>
-                  <input
-                    id="password"
-                    required
-                    type="password"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                  <PasswordStrengthInput
                     value={formData.password}
-                    onChange={handleInputChange}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                    label="Temporary Password"
+                    id="password"
+                    placeholder="Auto-generated if left blank"
+                    showRequirements={formData.password.length > 0}
                   />
+                  <p className="text-[10px] text-on-surface-variant/70 italic mt-1">
+                    Leave blank to automatically generate a secure password and email it.
+                  </p>
                 </div>
                 <div>
                   <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="role">Access Role</label>
                   <select
                     id="role"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
                     value={formData.role}
                     onChange={handleInputChange}
                   >
@@ -370,6 +395,7 @@ export default function Admins() {
                     <option value="superadmin">Super Admin</option>
                   </select>
                 </div>
+                
                 <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/30">
                   <button
                     type="button"
@@ -380,9 +406,20 @@ export default function Admins() {
                   </button>
                   <button
                     type="submit"
-                    className="bg-primary text-on-primary font-bold px-6 py-2 rounded-xl hover:opacity-95 transition-all text-label-md shadow-md cursor-pointer flex items-center justify-center gap-2"
+                    disabled={isLoading || !formData.name || !formData.email || (formData.password.length > 0 && formData.password.length < 8)}
+                    className="bg-primary text-on-primary font-bold px-6 py-2 rounded-xl hover:opacity-95 transition-all text-label-md shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-55"
                   >
-                    Create Admin
+                    {isLoading ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        Create Administrator
+                        <span className="material-symbols-outlined">person_add</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
@@ -409,45 +446,51 @@ export default function Admins() {
               className="w-full max-w-md bg-surface-container-low rounded-2xl p-6 border border-outline-variant/30 shadow-2xl z-10 text-left"
             >
               <h3 className="text-headline-sm font-extrabold text-on-surface mb-4">Edit Administrator</h3>
+              
+              {errorMessage && (
+                <div className="p-3 text-xs bg-error-container text-on-error-container font-semibold rounded-lg mb-4">
+                  {errorMessage}
+                </div>
+              )}
+
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
+                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="edit-name">Full Name</label>
                   <input
                     id="name"
                     required
                     type="text"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
                     value={formData.name}
                     onChange={handleInputChange}
                   />
                 </div>
                 <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="email">Email Address</label>
+                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="edit-email">Email Address</label>
                   <input
                     id="email"
                     required
                     type="email"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
                     value={formData.email}
                     onChange={handleInputChange}
                   />
                 </div>
+                
+                <PasswordStrengthInput
+                  value={formData.password}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                  label="New Password (leave empty to keep unchanged)"
+                  id="edit-password"
+                  required={false}
+                  showRequirements={formData.password.length > 0}
+                />
+
                 <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="password">New Password (leave empty to keep unchanged)</label>
-                  <input
-                    id="password"
-                    placeholder="••••••••"
-                    type="password"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="role">Access Role</label>
+                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="edit-role">Access Role</label>
                   <select
                     id="role"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
                     value={formData.role}
                     onChange={handleInputChange}
                   >
@@ -465,9 +508,20 @@ export default function Admins() {
                   </button>
                   <button
                     type="submit"
+                    disabled={isLoading}
                     className="bg-primary text-on-primary font-bold px-6 py-2 rounded-xl hover:opacity-95 transition-all text-label-md shadow-md cursor-pointer flex items-center justify-center gap-2"
                   >
-                    Save Changes
+                    {isLoading ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        Save Changes
+                        <span className="material-symbols-outlined">save</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
@@ -511,9 +565,10 @@ export default function Admins() {
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
+                  disabled={isLoading}
                   className="bg-error text-on-error font-bold px-6 py-2 rounded-xl hover:opacity-95 transition-all text-label-md shadow-md cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Confirm Delete
+                  {isLoading ? "Deleting..." : "Confirm Delete"}
                 </button>
               </div>
             </motion.div>
