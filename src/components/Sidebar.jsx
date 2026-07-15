@@ -48,6 +48,11 @@ export const Sidebar = ({ onLogout, onNewAppointment }) => {
             icon: "edit_note"
         },
         {
+            id: "messages",
+            label: "Contact Messages",
+            icon: "mail"
+        },
+        {
             id: "settings",
             label: "Settings",
             icon: "settings"

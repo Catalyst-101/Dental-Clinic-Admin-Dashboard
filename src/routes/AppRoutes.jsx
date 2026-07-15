@@ -11,6 +11,7 @@ import Services from "../pages/Services";
 import WebsiteContent from "../pages/WebsiteContent";
 import Settings from "../pages/Settings";
 import Admins from "../pages/Admins";
+import ContactMessages from "../pages/ContactMessages";
 
 // Helper function to get authentication token
 const getToken = () => {
@@ -118,6 +119,11 @@ const Layout = () => {
           <Route
             path="/settings"
             element={<ProtectedRoute><Settings /></ProtectedRoute>}
+          />
+
+          <Route
+            path="/messages"
+            element={<ProtectedRoute><ContactMessages /></ProtectedRoute>}
           />
 
           <Route
