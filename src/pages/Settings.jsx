@@ -4,6 +4,15 @@ import TopBar from "../components/TopBar";
 import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
 import { apiFetch } from "../utils/apiClient";
 
+const getMapUrl = (urlOrIframe) => {
+  if (!urlOrIframe) return "";
+  if (urlOrIframe.trim().startsWith("<iframe")) {
+    const match = urlOrIframe.match(/src=["']([^"']+)["']/i);
+    return match ? match[1] : urlOrIframe;
+  }
+  return urlOrIframe;
+};
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(false);
@@ -591,7 +600,7 @@ export default function Settings() {
                     />
                     {contactSettings.googleMapUrl && (
                       <div className="mt-2 rounded-xl overflow-hidden border border-outline-variant/30 h-40 shadow-xs select-none">
-                        <iframe title="map-preview" src={contactSettings.googleMapUrl} className="w-full h-full border-none"></iframe>
+                        <iframe title="map-preview" src={getMapUrl(contactSettings.googleMapUrl)} className="w-full h-full border-none"></iframe>
                       </div>
                     )}
                   </div>

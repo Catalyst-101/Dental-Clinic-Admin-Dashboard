@@ -1,11 +1,25 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = ({ 
-  adminName = "Dr. Smith", 
-  role = "Chief Administrator", 
+  adminName, 
+  role, 
   avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh" 
 }) => {
+  const navigate = useNavigate();
+  const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
+  const storedUser = storedUserJson ? JSON.parse(storedUserJson) : null;
+
+  const displayAdminName = adminName || storedUser?.name || "Dr. Smith";
+  const displayRole = role || (storedUser?.role === "superadmin" ? "Super Admin" : (storedUser?.role === "admin" ? "Admin" : "Chief Administrator"));
+  
+  const displayAvatarUrl = storedUser?.profilePicture
+    ? (storedUser.profilePicture.startsWith("/uploads")
+        ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${storedUser.profilePicture}`
+        : storedUser.profilePicture)
+    : avatarUrl;
+
   return (
     <header className="flex justify-between items-center px-6 py-2 sticky top-0 bg-surface-container-lowest/80 backdrop-blur-xl border-b border-surface-container-highest z-30 select-none">
       
@@ -50,17 +64,20 @@ const Navbar = ({
         </div>
 
         {/* Profile Card Separated by Vertical Divider */}
-        <div className="flex items-center gap-3 pl-4 border-l border-surface-container-highest">
+        <div 
+          onClick={() => navigate("/settings")} 
+          className="flex items-center gap-3 pl-4 border-l border-surface-container-highest cursor-pointer hover:opacity-90 transition-opacity"
+        >
           <div className="text-right hidden sm:block">
-            <p className="font-label-md text-label-md text-on-surface font-semibold">{adminName}</p>
-            <p className="font-label-sm text-label-sm text-on-surface-variant opacity-80 mt-0.5">{role}</p>
+            <p className="font-label-md text-label-md text-on-surface font-semibold">{displayAdminName}</p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant opacity-80 mt-0.5">{displayRole}</p>
           </div>
           
           <motion.img 
             whileHover={{ scale: 1.05 }}
-            alt={`${adminName} Profile`} 
+            alt={`${displayAdminName} Profile`} 
             className="w-10 h-10 rounded-full object-cover border-2 border-primary-fixed cursor-pointer shadow-sm"
-            src={avatarUrl}
+            src={displayAvatarUrl}
           />
         </div>
       </div>

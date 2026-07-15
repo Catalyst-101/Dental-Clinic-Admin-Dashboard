@@ -24,34 +24,13 @@ export default function WebsiteContent() {
     { id: 4, label: "Successful Procedures", value: "98%" }
   ]);
 
-  const [testimonials, setTestimonials] = useState([
-    {
-      id: 1,
-      name: "Marcus Aurelius",
-      rating: 5,
-      comment: "DentaElite completely changed my perspective on dental visits. The ambient design, professional staff, and painless treatments are top notch.",
-      date: "2026-05-12",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120"
-    },
-    {
-      id: 2,
-      name: "Sophia Loren",
-      rating: 5,
-      comment: "The cosmetic veneers I received from Dr. Rodriguez look incredibly natural. They were highly professional throughout the entire process.",
-      date: "2026-06-02",
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120"
-    }
-  ]);
+  const [testimonials, setTestimonials] = useState([]);
 
-  const [gallery, setGallery] = useState([
-    { id: 1, url: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300", caption: "Premium Operating Room" },
-    { id: 2, url: "https://images.unsplash.com/photo-1513224502586-d1e602410265?auto=format&fit=crop&q=80&w=300", caption: "Luxury Consultation Lounge" },
-    { id: 3, url: "https://images.unsplash.com/photo-1579684389782-64d84b5e905a?auto=format&fit=crop&q=80&w=300", caption: "Advanced Diagnostic Scanner" }
-  ]);
+  const [gallery, setGallery] = useState([]);
 
   // Modal states
   const [newTestimonial, setNewTestimonial] = useState({ name: "", rating: 5, comment: "", image: "" });
-  const [newGalleryItem, setNewGalleryItem] = useState({ url: "", caption: "" });
+  const [newGalleryItem, setNewGalleryItem] = useState({ url: "", caption: "", tag: "The Clinic" });
   
   const [showAddTestimonial, setShowAddTestimonial] = useState(false);
   const [showAddGallery, setShowAddGallery] = useState(false);
@@ -70,6 +49,14 @@ export default function WebsiteContent() {
           id: t._id
         }));
         setTestimonials(mapped);
+      }
+      const galleryRes = await apiFetch("/api/settings/gallery");
+      if (galleryRes.success && galleryRes.data) {
+        const mapped = galleryRes.data.map(g => ({
+          ...g,
+          id: g._id
+        }));
+        setGallery(mapped);
       }
     } catch (err) {
       console.error("Failed to load CMS data:", err);
@@ -145,26 +132,75 @@ export default function WebsiteContent() {
     }
   };
 
-  const addGalleryItem = (e) => {
-    e.preventDefault();
-    if (!newGalleryItem.url || !newGalleryItem.caption) return;
+  const handleGalleryUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    setGallery(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        url: newGalleryItem.url,
-        caption: newGalleryItem.caption
+    const formData = new FormData();
+    formData.append("image", file);
+
+    setIsLoading(true);
+    try {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await fetch(`${BASE_URL}/api/settings/gallery/upload`, {
+        method: "POST",
+        headers,
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to upload image");
       }
-    ]);
-    setNewGalleryItem({ url: "", caption: "" });
-    setShowAddGallery(false);
-    setToastMessage("New gallery photo staged successfully!");
+      setNewGalleryItem(prev => ({ ...prev, url: data.url }));
+      setToastMessage("Image uploaded successfully!");
+    } catch (err) {
+      alert(err.message || "Failed to upload image");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deleteGalleryItem = (id) => {
-    setGallery(prev => prev.filter(g => g.id !== id));
-    setToastMessage("Gallery photo unstaged.");
+  const addGalleryItem = async (e) => {
+    e.preventDefault();
+    if (!newGalleryItem.url || !newGalleryItem.caption || !newGalleryItem.tag) return;
+
+    setIsLoading(true);
+    try {
+      await apiFetch("/api/settings/gallery", {
+        method: "POST",
+        body: {
+          url: newGalleryItem.url,
+          caption: newGalleryItem.caption,
+          tag: newGalleryItem.tag
+        }
+      });
+      setNewGalleryItem({ url: "", caption: "", tag: "The Clinic" });
+      setShowAddGallery(false);
+      await fetchCMSData();
+      setToastMessage("New gallery photo staged successfully!");
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to stage image.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteGalleryItem = async (id) => {
+    setIsLoading(true);
+    try {
+      await apiFetch(`/api/settings/gallery/${id}`, {
+        method: "DELETE"
+      });
+      await fetchCMSData();
+      setToastMessage("Gallery photo unstaged.");
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to delete gallery photo.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const tabs = [
@@ -404,9 +440,20 @@ export default function WebsiteContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {gallery.map((img) => (
                     <div key={img.id} className="relative rounded-xl overflow-hidden group border border-outline-variant/30 h-40 select-none">
-                      <img src={img.url} alt={img.caption} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img 
+                        src={img.url.startsWith("/uploads") 
+                          ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${img.url}` 
+                          : img.url} 
+                        alt={img.caption} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent flex flex-col justify-end p-3 text-left">
                         <span className="text-[11px] font-bold text-white truncate">{img.caption}</span>
+                        {img.tag && (
+                          <span className="text-[9px] font-extrabold uppercase bg-primary text-on-primary px-1.5 py-0.5 rounded-md mt-1 w-fit select-none">
+                            {img.tag}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => deleteGalleryItem(img.id)}
@@ -425,26 +472,50 @@ export default function WebsiteContent() {
                     <form onSubmit={addGalleryItem} className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Image Link URL</label>
+                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Upload Image</label>
                           <input
-                            type="url"
-                            required
-                            placeholder="https://images.unsplash.com/..."
-                            className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 text-label-md"
-                            value={newGalleryItem.url}
-                            onChange={(e) => setNewGalleryItem(prev => ({ ...prev, url: e.target.value }))}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleGalleryUpload}
+                            className="w-full text-label-sm file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
                           />
+                          {newGalleryItem.url && (
+                            <div className="mt-2 h-20 w-32 border border-outline-variant/30 rounded-lg overflow-hidden relative select-none">
+                              <img 
+                                src={newGalleryItem.url.startsWith("/uploads") 
+                                  ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${newGalleryItem.url}` 
+                                  : newGalleryItem.url} 
+                                alt="Preview" 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Image Caption</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="State-of-the-art Surgery Suite"
-                            className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 text-label-md"
-                            value={newGalleryItem.caption}
-                            onChange={(e) => setNewGalleryItem(prev => ({ ...prev, caption: e.target.value }))}
-                          />
+                        <div className="space-y-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Image Caption</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="State-of-the-art Surgery Suite"
+                              className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 text-label-md"
+                              value={newGalleryItem.caption}
+                              onChange={(e) => setNewGalleryItem(prev => ({ ...prev, caption: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Category/Tag</label>
+                            <select
+                              className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2 text-label-md font-bold cursor-pointer"
+                              value={newGalleryItem.tag}
+                              onChange={(e) => setNewGalleryItem(prev => ({ ...prev, tag: e.target.value }))}
+                            >
+                              <option value="The Clinic">The Clinic</option>
+                              <option value="Equipment">Equipment</option>
+                              <option value="Treatments">Treatments</option>
+                              <option value="Before & After">Before & After</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 select-none">
