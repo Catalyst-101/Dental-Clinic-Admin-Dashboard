@@ -328,6 +328,8 @@ const LoginPage = () => {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        onCopy={(e) => e.preventDefault()}
+                        onCut={(e) => e.preventDefault()}
                         className="w-full pl-12 pr-12 py-3 rounded-lg border border-outline-variant outline-none bg-surface-container-lowest text-on-surface focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/40"
                         placeholder="••••••••"
                       />

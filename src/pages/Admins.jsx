@@ -21,6 +21,10 @@ export default function Admins() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // OTP States
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+
   // Form States
   const [formData, setFormData] = useState({
     name: "",
@@ -83,15 +87,56 @@ export default function Admins() {
     setIsLoading(true);
     setErrorMessage("");
     try {
+      if (!otpStep) {
+        // Step 1: Send OTP to the email address
+        const res = await apiFetch("/api/admins", {
+          method: "POST",
+          body: formData
+        });
+        if (res.otpRequired) {
+          setOtpStep(true);
+        } else {
+          setToastMessage(`Administrator ${formData.name} created successfully!`);
+          setIsCreateModalOpen(false);
+          fetchAdmins();
+        }
+      } else {
+        // Step 2: Verify OTP and create admin
+        if (!otpCode || otpCode.length !== 6) {
+          setErrorMessage("Please enter a valid 6-digit OTP code.");
+          setIsLoading(false);
+          return;
+        }
+        await apiFetch("/api/admins/verify-otp", {
+          method: "POST",
+          body: {
+            email: formData.email,
+            otp: otpCode
+          }
+        });
+        setToastMessage(`Administrator ${formData.name} created successfully!`);
+        setIsCreateModalOpen(false);
+        fetchAdmins();
+      }
+    } catch (err) {
+      setErrorMessage(err.response?.message || err.message || "Failed to process administrator creation.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle OTP resend
+  const handleResendOTP = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
       await apiFetch("/api/admins", {
         method: "POST",
         body: formData
       });
-      setToastMessage(`Administrator ${formData.name} created successfully!`);
-      setIsCreateModalOpen(false);
-      fetchAdmins();
+      setToastMessage("A new verification code has been sent!");
     } catch (err) {
-      setErrorMessage(err.response?.message || err.message || "Failed to create administrator.");
+      setErrorMessage(err.response?.message || err.message || "Failed to resend verification code.");
     } finally {
       setIsLoading(false);
     }
@@ -157,6 +202,8 @@ export default function Admins() {
       role: "admin"
     });
     setErrorMessage("");
+    setOtpStep(false);
+    setOtpCode("");
     setIsCreateModalOpen(true);
   };
 
@@ -346,78 +393,129 @@ export default function Admins() {
               )}
 
               <form onSubmit={handleCreateSubmit} className="space-y-4">
-                <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
-                  <input
-                    id="name"
-                    required
-                    type="text"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="e.g. Saad Karim"
-                  />
-                </div>
-                <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="email">Email Address</label>
-                  <input
-                    id="email"
-                    required
-                    type="email"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="saad@dentaelite.com"
-                  />
-                </div>
-                <div>
-                  <PasswordStrengthInput
-                    value={formData.password}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                    label="Temporary Password"
-                    id="password"
-                    placeholder="Auto-generated if left blank"
-                    showRequirements={formData.password.length > 0}
-                  />
-                  <p className="text-[10px] text-on-surface-variant/70 italic mt-1">
-                    Leave blank to automatically generate a secure password and email it.
-                  </p>
-                </div>
-                <div>
-                  <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="role">Access Role</label>
-                  <select
-                    id="role"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="superadmin">Super Admin</option>
-                  </select>
-                </div>
+                {!otpStep ? (
+                  <>
+                    <div>
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
+                      <input
+                        id="name"
+                        required
+                        type="text"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Saad Karim"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="email">Email Address</label>
+                      <input
+                        id="email"
+                        required
+                        type="email"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="saad@dentaelite.com"
+                      />
+                    </div>
+                    <div>
+                      <PasswordStrengthInput
+                        value={formData.password}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                        label="Temporary Password"
+                        id="password"
+                        placeholder="Auto-generated if left blank"
+                        showRequirements={formData.password.length > 0}
+                      />
+                      <p className="text-[10px] text-on-surface-variant/70 italic mt-1">
+                        Leave blank to automatically generate a secure password and email it.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="role">Access Role</label>
+                      <select
+                        id="role"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
+                        value={formData.role}
+                        onChange={handleInputChange}
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="superadmin">Super Admin</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-surface-container-highest/30 border border-outline-variant/30 rounded-xl p-4 space-y-2 text-sm text-on-surface-variant mb-2">
+                      <div><strong>Name:</strong> {formData.name}</div>
+                      <div><strong>Email:</strong> {formData.email}</div>
+                      <div><strong>Role:</strong> <span className="capitalize">{formData.role}</span></div>
+                    </div>
+                    <div>
+                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="otpCode">Verification OTP</label>
+                      <input
+                        id="otpCode"
+                        required
+                        type="text"
+                        maxLength={6}
+                        pattern="\d{6}"
+                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface text-center tracking-[12px] font-bold text-xl focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="123456"
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-[10px] text-on-surface-variant/70 italic">
+                          Enter the 6-digit code sent to your email.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleResendOTP}
+                          disabled={isLoading}
+                          className="text-[11px] text-primary font-bold hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          Resend OTP
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
                 
                 <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/30">
                   <button
                     type="button"
-                    onClick={() => setIsCreateModalOpen(false)}
+                    onClick={() => {
+                      if (otpStep) {
+                        setOtpStep(false);
+                      } else {
+                        setIsCreateModalOpen(false);
+                      }
+                    }}
                     className="border border-outline-variant/50 text-on-surface font-semibold px-4 py-2 rounded-xl hover:bg-surface-container-high transition-colors text-label-md cursor-pointer"
                   >
-                    Cancel
+                    {otpStep ? "Back" : "Cancel"}
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading || !formData.name || !formData.email || (formData.password.length > 0 && formData.password.length < 8)}
+                    disabled={
+                      otpStep
+                        ? (isLoading || otpCode.length !== 6)
+                        : (isLoading || !formData.name || !formData.email || (formData.password.length > 0 && formData.password.length < 8))
+                    }
                     className="bg-primary text-on-primary font-bold px-6 py-2 rounded-xl hover:opacity-95 transition-all text-label-md shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-55"
                   >
                     {isLoading ? (
                       <>
                         <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                        Creating...
+                        {otpStep ? "Verifying..." : "Creating..."}
                       </>
                     ) : (
                       <>
-                        Create Administrator
-                        <span className="material-symbols-outlined">person_add</span>
+                        {otpStep ? "Verify & Create" : "Create Administrator"}
+                        <span className="material-symbols-outlined">
+                          {otpStep ? "verified" : "person_add"}
+                        </span>
                       </>
                     )}
                   </button>
@@ -471,9 +569,9 @@ export default function Admins() {
                     id="email"
                     required
                     type="email"
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 mt-1"
+                    disabled
+                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md text-on-surface-variant/50 focus:outline-none mt-1 cursor-not-allowed opacity-60"
                     value={formData.email}
-                    onChange={handleInputChange}
                   />
                 </div>
                 

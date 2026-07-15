@@ -58,6 +58,8 @@ export function PasswordStrengthInput({
           type={showPassword ? "text" : "password"}
           value={value}
           onChange={onChange}
+          onCopy={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
           className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-3 pl-11 pr-12 text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 text-on-surface placeholder:text-on-surface-variant/40"
           placeholder={placeholder}
         />
