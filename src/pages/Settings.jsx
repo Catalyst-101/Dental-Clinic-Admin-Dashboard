@@ -38,10 +38,7 @@ export default function Settings() {
             email: data.user.email || "",
             profilePicture: data.user.profilePicture || ""
           });
-          setSecuritySettings((prev) => ({
-            ...prev,
-            twoFactorEnabled: !!data.user.twoFactorEnabled
-          }));
+
         }
       } catch (err) {
         console.error("Failed to fetch administrator details:", err);
@@ -84,8 +81,7 @@ export default function Settings() {
   const [securitySettings, setSecuritySettings] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: "",
-    twoFactorEnabled: false
+    confirmPassword: ""
   });
   const [securityError, setSecurityError] = useState("");
 
@@ -95,19 +91,7 @@ export default function Settings() {
   // Forced password change state
   const [mustChangePassword, setMustChangePassword] = useState(false);
 
-  // 2FA Setup Modal States
-  const [is2faModalOpen, setIs2faModalOpen] = useState(false);
-  const [mfaSetupData, setMfaSetupData] = useState(null); // { secret, qrCodeUrl }
-  const [mfaOtp, setMfaOtp] = useState("");
-  const [mfaPassword, setMfaPassword] = useState("");
-  const [showMfaPassword, setShowMfaPassword] = useState(false);
-  const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState([]);
-  const [mfaStep, setMfaStep] = useState(1); // 1: setup, 2: recovery codes
 
-  // 2FA Disable Modal States
-  const [isMfaDisableOpen, setIsMfaDisableOpen] = useState(false);
-  const [mfaDisablePassword, setMfaDisablePassword] = useState("");
-  const [showMfaDisablePassword, setShowMfaDisablePassword] = useState(false);
 
   // Check if forced password change is required on mount
   useEffect(() => {
@@ -119,98 +103,7 @@ export default function Settings() {
     }
   }, []);
 
-  // Initiate 2FA Setup Flow
-  const initiate2faSetup = async () => {
-    setIsLoading(true);
-    setSecurityError("");
-    try {
-      const data = await apiFetch("/api/auth/2fa/setup", {
-        method: "POST"
-      });
-      if (data.success) {
-        setMfaSetupData(data);
-        setMfaStep(1);
-        setMfaOtp("");
-        setMfaPassword("");
-        setShowMfaPassword(false);
-        setIs2faModalOpen(true);
-      }
-    } catch (err) {
-      alert(err.response?.message || err.message || "Failed to initiate 2FA setup.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  // Submit 2FA Verification and Enablement
-  const handle2faEnableSubmit = async (e) => {
-    e.preventDefault();
-    if (!mfaOtp || !mfaPassword) {
-      alert("Verification code and password are required.");
-      return;
-    }
-    setIsLoading(true);
-    setSecurityError("");
-    try {
-      const data = await apiFetch("/api/auth/2fa/enable", {
-        method: "POST",
-        body: { otp: mfaOtp, password: mfaPassword }
-      });
-      if (data.success) {
-        setMfaRecoveryCodes(data.recoveryCodes || []);
-        setSecuritySettings((prev) => ({ ...prev, twoFactorEnabled: true }));
-
-        // Sync local user storage
-        const rememberMe = localStorage.getItem("token") !== null;
-        const storage = rememberMe ? localStorage : sessionStorage;
-        const storedUser = JSON.parse(storage.getItem("user") || "{}");
-        storedUser.twoFactorEnabled = true;
-        storage.setItem("user", JSON.stringify(storedUser));
-        window.dispatchEvent(new Event("storage"));
-
-        setMfaStep(2); // move to recovery codes view
-      }
-    } catch (err) {
-      alert(err.response?.message || err.message || "Failed to enable 2FA.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Submit 2FA Disable
-  const handle2faDisableSubmit = async (e) => {
-    e.preventDefault();
-    if (!mfaDisablePassword) {
-      alert("Password is required to disable 2FA.");
-      return;
-    }
-    setIsLoading(true);
-    setSecurityError("");
-    try {
-      const data = await apiFetch("/api/auth/2fa/disable", {
-        method: "POST",
-        body: { password: mfaDisablePassword }
-      });
-      if (data.success) {
-        setSecuritySettings((prev) => ({ ...prev, twoFactorEnabled: false }));
-
-        // Sync local user storage
-        const rememberMe = localStorage.getItem("token") !== null;
-        const storage = rememberMe ? localStorage : sessionStorage;
-        const storedUser = JSON.parse(storage.getItem("user") || "{}");
-        storedUser.twoFactorEnabled = false;
-        storage.setItem("user", JSON.stringify(storedUser));
-        window.dispatchEvent(new Event("storage"));
-
-        setToastMessage("Two-factor authentication disabled successfully!");
-        setIsMfaDisableOpen(false);
-      }
-    } catch (err) {
-      alert(err.response?.message || err.message || "Failed to disable 2FA.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const markDirty = () => {
     setIsDirty(true);
@@ -386,8 +279,7 @@ export default function Settings() {
         setSecuritySettings({
           currentPassword: "",
           newPassword: "",
-          confirmPassword: "",
-          twoFactorEnabled: !!data.user.twoFactorEnabled
+          confirmPassword: ""
         });
       }
       setIsDirty(false);
@@ -449,7 +341,7 @@ export default function Settings() {
     { id: "contact", label: "Contact Info", icon: "alternate_email" },
     { id: "social", label: "Social Connect", icon: "share" },
     { id: "hours", label: "Business Hours", icon: "schedule" },
-    { id: "security", label: "Security & 2FA", icon: "shield" }
+    { id: "security", label: "Security", icon: "shield" }
   ];
 
   const timeOptions = [
