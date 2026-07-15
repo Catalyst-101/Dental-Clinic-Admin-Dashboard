@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
+import { apiFetch } from "../utils/apiClient";
 
 export default function WebsiteContent() {
   const [activeTab, setActiveTab] = useState("stats");
@@ -55,42 +56,93 @@ export default function WebsiteContent() {
   const [showAddTestimonial, setShowAddTestimonial] = useState(false);
   const [showAddGallery, setShowAddGallery] = useState(false);
 
-  const handlePublish = (e) => {
+  const fetchCMSData = async () => {
+    setIsLoading(true);
+    try {
+      const settingsRes = await apiFetch("/api/settings");
+      if (settingsRes.success && settingsRes.data?.stats) {
+        setStats(settingsRes.data.stats);
+      }
+      const testimonialsRes = await apiFetch("/api/settings/testimonials");
+      if (testimonialsRes.success && testimonialsRes.data) {
+        const mapped = testimonialsRes.data.map(t => ({
+          ...t,
+          id: t._id
+        }));
+        setTestimonials(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load CMS data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCMSData();
+  }, []);
+
+  const handlePublish = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await apiFetch("/api/settings", {
+        method: "PUT",
+        body: { stats }
+      });
       setToastMessage("CMS content published successfully! Changes are live on DentaElite public website.");
-    }, 1500);
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to publish CMS content.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStatChange = (id, field, value) => {
     setStats(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
-  const addTestimonial = (e) => {
+  const addTestimonial = async (e) => {
     e.preventDefault();
     if (!newTestimonial.name || !newTestimonial.comment) return;
     
-    setTestimonials(prev => [
-      ...prev,
-      {
-        id: Date.now(),
+    setIsLoading(true);
+    try {
+      const payload = {
         name: newTestimonial.name,
         rating: Number(newTestimonial.rating),
         comment: newTestimonial.comment,
         image: newTestimonial.image || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(newTestimonial.name)}`,
         date: new Date().toISOString().split("T")[0]
-      }
-    ]);
-    setNewTestimonial({ name: "", rating: 5, comment: "", image: "" });
-    setShowAddTestimonial(false);
-    setToastMessage("New testimonial added to queue (UI demo only)!");
+      };
+      await apiFetch("/api/settings/testimonials", {
+        method: "POST",
+        body: payload
+      });
+      setNewTestimonial({ name: "", rating: 5, comment: "", image: "" });
+      setShowAddTestimonial(false);
+      await fetchCMSData();
+      setToastMessage("New testimonial added successfully!");
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to add testimonial.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deleteTestimonial = (id) => {
-    setTestimonials(prev => prev.filter(t => t.id !== id));
-    setToastMessage("Testimonial removed from staging queue.");
+  const deleteTestimonial = async (id) => {
+    setIsLoading(true);
+    try {
+      await apiFetch(`/api/settings/testimonials/${id}`, {
+        method: "DELETE"
+      });
+      await fetchCMSData();
+      setToastMessage("Testimonial removed successfully.");
+    } catch (err) {
+      alert(err.response?.message || err.message || "Failed to delete testimonial.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addGalleryItem = (e) => {
@@ -426,36 +478,8 @@ export default function WebsiteContent() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setStats([
-                  { id: 1, label: "Patients Treated", value: "15,000+" },
-                  { id: 2, label: "Years Experience", value: "28+" },
-                  { id: 3, label: "Expert Dentists", value: "45+" },
-                  { id: 4, label: "Successful Procedures", value: "98%" }
-                ]);
-                setTestimonials([
-                  {
-                    id: 1,
-                    name: "Marcus Aurelius",
-                    rating: 5,
-                    comment: "DentaElite completely changed my perspective on dental visits. The ambient design, professional staff, and painless treatments are top notch.",
-                    date: "2026-05-12",
-                    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120"
-                  },
-                  {
-                    id: 2,
-                    name: "Sophia Loren",
-                    rating: 5,
-                    comment: "The cosmetic veneers I received from Dr. Rodriguez look incredibly natural. They were highly professional throughout the entire process.",
-                    date: "2026-06-02",
-                    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120"
-                  }
-                ]);
-                setGallery([
-                  { id: 1, url: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300", caption: "Premium Operating Room" },
-                  { id: 2, url: "https://images.unsplash.com/photo-1513224502586-d1e602410265?auto=format&fit=crop&q=80&w=300", caption: "Luxury Consultation Lounge" },
-                  { id: 3, url: "https://images.unsplash.com/photo-1579684389782-64d84b5e905a?auto=format&fit=crop&q=80&w=300", caption: "Advanced Diagnostic Scanner" }
-                ]);
+              onClick={async () => {
+                await fetchCMSData();
                 setToastMessage("Changes discarded! Staging reset to current live version.");
               }}
               className="border border-outline-variant/50 text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"

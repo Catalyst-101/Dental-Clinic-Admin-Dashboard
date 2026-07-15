@@ -26,6 +26,35 @@ export default function Settings() {
     profilePicture: ""
   });
 
+  const fetchSettings = async () => {
+    try {
+      const res = await apiFetch("/api/settings");
+      if (res.success && res.data) {
+        if (res.data.contact) {
+          setContactSettings({
+            address: res.data.contact.address || "",
+            phone: res.data.contact.phone || "",
+            whatsApp: res.data.contact.whatsApp || "",
+            email: res.data.contact.email || "",
+            googleMapUrl: res.data.contact.googleMapUrl || ""
+          });
+        }
+        if (res.data.social) {
+          setSocialSettings({
+            whatsApp: res.data.social.whatsApp || "",
+            facebook: res.data.social.facebook || "",
+            instagram: res.data.social.instagram || ""
+          });
+        }
+        if (res.data.businessHours) {
+          setBusinessHours(res.data.businessHours);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
+    }
+  };
+
   // Fetch live admin data on mount
   useEffect(() => {
     const fetchProfile = async () => {
@@ -45,14 +74,10 @@ export default function Settings() {
       }
     };
     fetchProfile();
+    fetchSettings();
   }, []);
 
   // Form States (Clinic Information Mockup Settings)
-  const [generalSettings, setGeneralSettings] = useState({
-    clinicName: "DentaElite Premium Care",
-    clinicDescription: "Providing world-class restorative and aesthetic dentistry services in a premium, patient-focused environment. We combine state-of-the-art technology with high-end hospitality.",
-    logoUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuB5x3fsFR2dpzcw9XWJta6FvDyglaUrpXfxOtwSR6XWH5r3ulJXyPO4DuboJetQlno9F27iy-oWVFf5YC9ILA3IemwTVxIWfeTLqObtOkQHPYxFrebWF1kb58NDgdKarpW63BWZxnpcQJ7YOEoBAv0F_-ZhZtj13QpAfFb0CencZ4cXy1a0Byr736PFKK4pskJZBMzE6CPgHVsbYeih1cT3kz6wELtHqosEyeTPPU5OV9yThkl-h6UrebW2caITr1LAhjdD4GZzgmwd"
-  });
 
   const [contactSettings, setContactSettings] = useState({
     address: "742 Medical Mile, Suite 200, Beverly Hills, CA 90210",
@@ -256,12 +281,24 @@ export default function Settings() {
       } finally {
         setIsLoading(false);
       }
-    } else {
-      setTimeout(() => {
-        setIsLoading(false);
+    } else if (["contact", "social", "hours"].includes(activeTab)) {
+      try {
+        const payload = {};
+        if (activeTab === "contact") payload.contact = contactSettings;
+        if (activeTab === "social") payload.social = socialSettings;
+        if (activeTab === "hours") payload.businessHours = businessHours;
+
+        await apiFetch("/api/settings", {
+          method: "PUT",
+          body: payload
+        });
+        setToastMessage("Settings updated successfully!");
         setIsDirty(false);
-        setToastMessage("Settings updated successfully (UI demo only)!");
-      }, 1200);
+      } catch (error) {
+        alert(error.response?.message || error.message || "Failed to update settings.");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -282,18 +319,14 @@ export default function Settings() {
           confirmPassword: ""
         });
       }
+      await fetchSettings();
       setIsDirty(false);
-      setToastMessage("Changes discarded. Profile settings re-synced.");
+      setToastMessage("Changes discarded. All settings re-synced.");
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGeneralChange = (field, val) => {
-    setGeneralSettings((prev) => ({ ...prev, [field]: val }));
-    markDirty();
   };
 
   const handleContactChange = (field, val) => {
@@ -319,25 +352,8 @@ export default function Settings() {
     markDirty();
   };
 
-  const handleLogoUploadSim = () => {
-    const fakeUrls = [
-      "https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200",
-      "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
-      "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=200"
-    ];
-    const randomUrl = fakeUrls[Math.floor(Math.random() * fakeUrls.length)];
-    handleGeneralChange("logoUrl", randomUrl);
-    setToastMessage("Logo uploaded successfully (simulated)!");
-  };
-
-  const handleLogoRemove = () => {
-    handleGeneralChange("logoUrl", "");
-    setToastMessage("Logo removed.");
-  };
-
   const menuTabs = [
     { id: "profile", label: "Admin Profile", icon: "person" },
-    { id: "general", label: "Clinic Profile", icon: "tune" },
     { id: "contact", label: "Contact Info", icon: "alternate_email" },
     { id: "social", label: "Social Connect", icon: "share" },
     { id: "hours", label: "Business Hours", icon: "schedule" },
@@ -495,81 +511,7 @@ export default function Settings() {
               </section>
             )}
 
-            {/* CLINIC GENERAL TAB */}
-            {activeTab === "general" && (
-              <section className="glass-card rounded-2xl p-6 border border-outline-variant/30 text-left space-y-6">
-                <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-3 select-none">
-                  <span className="material-symbols-outlined text-primary text-[28px]">tune</span>
-                  <h2 className="text-headline-sm font-extrabold text-on-surface">Clinic Information</h2>
-                </div>
 
-                {/* Logo Upload Box */}
-                <div className="flex items-center gap-6 p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xs">
-                  <div className="w-24 h-24 rounded-xl bg-primary-container/10 flex items-center justify-center border-2 border-dashed border-primary/30 group cursor-pointer hover:bg-primary-container/20 transition-all overflow-hidden relative shadow-sm select-none">
-                    {generalSettings.logoUrl ? (
-                      <img
-                        alt="Clinic Logo Preview"
-                        className="w-full h-full object-cover"
-                        src={generalSettings.logoUrl}
-                        onError={(e) => { e.target.src = "https://api.dicebear.com/7.x/initials/svg?seed=DE" }}
-                      />
-                    ) : (
-                      <span className="material-symbols-outlined text-primary/50 text-3xl">dentistry</span>
-                    )}
-                    <div
-                      onClick={handleLogoUploadSim}
-                      className="absolute inset-0 bg-primary/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <span className="material-symbols-outlined text-white">upload</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5 select-none">
-                    <p className="text-label-md font-bold text-on-surface">Clinic Logo Banner</p>
-                    <p className="text-xs text-on-surface-variant leading-relaxed">PNG, JPG or SVG. Max 2MB. Recommended dimensions 512x512px.</p>
-                    <div className="flex gap-4 pt-1">
-                      <button
-                        onClick={handleLogoUploadSim}
-                        className="text-label-sm font-bold text-primary hover:underline cursor-pointer"
-                      >
-                        Upload Image
-                      </button>
-                      {generalSettings.logoUrl && (
-                        <button
-                          onClick={handleLogoRemove}
-                          className="text-label-sm font-bold text-error hover:underline cursor-pointer"
-                        >
-                          Remove Logo
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="clinic-name">Clinic Name</label>
-                    <input
-                      id="clinic-name"
-                      type="text"
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      value={generalSettings.clinicName}
-                      onChange={(e) => handleGeneralChange("clinicName", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="clinic-desc">Clinic Description Copy</label>
-                    <textarea
-                      id="clinic-desc"
-                      rows="4"
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md font-medium text-on-surface leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      value={generalSettings.clinicDescription}
-                      onChange={(e) => handleGeneralChange("clinicDescription", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
 
             {/* CONTACT TAB */}
             {activeTab === "contact" && (
