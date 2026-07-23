@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
 import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
-import { apiFetch } from "../utils/apiClient";
+import { apiFetch, getFullImageUrl } from "../utils/apiClient";
 
 const getMapUrl = (urlOrIframe) => {
   if (!urlOrIframe) return "";
@@ -157,19 +157,10 @@ export default function Settings() {
 
     setIsLoading(true);
     try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const response = await fetch(`${BASE_URL}/api/auth/profile-picture`, {
+      const data = await apiFetch("/api/auth/profile-picture", {
         method: "POST",
-        headers,
         body: formData
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to upload avatar");
-      }
       setProfileSettings((prev) => ({ ...prev, profilePicture: data.url }));
       markDirty();
       setToastMessage("Avatar image uploaded successfully!");
@@ -437,7 +428,7 @@ export default function Settings() {
                         alt="Admin Avatar Preview"
                         className="w-full h-full object-cover"
                         src={profileSettings.profilePicture.startsWith("/uploads")
-                          ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${profileSettings.profilePicture}`
+                          ? getFullImageUrl(profileSettings.profilePicture)
                           : profileSettings.profilePicture
                         }
                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profileSettings.name)}` }}

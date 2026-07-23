@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { getFullImageUrl } from "../utils/apiClient";
 
 const Navbar = ({ 
   adminName, 
@@ -16,7 +17,7 @@ const Navbar = ({
   
   const displayAvatarUrl = storedUser?.profilePicture
     ? (storedUser.profilePicture.startsWith("/uploads")
-        ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${storedUser.profilePicture}`
+        ? getFullImageUrl(storedUser.profilePicture)
         : storedUser.profilePicture)
     : avatarUrl;
 

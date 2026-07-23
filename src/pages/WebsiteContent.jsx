@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
-import { apiFetch } from "../utils/apiClient";
+import { apiFetch, getFullImageUrl } from "../utils/apiClient";
 
 export default function WebsiteContent() {
   const [activeTab, setActiveTab] = useState("stats");
@@ -141,19 +141,10 @@ export default function WebsiteContent() {
 
     setIsLoading(true);
     try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const response = await fetch(`${BASE_URL}/api/settings/gallery/upload`, {
+      const data = await apiFetch("/api/settings/gallery/upload", {
         method: "POST",
-        headers,
         body: formData
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to upload image");
-      }
       setNewGalleryItem(prev => ({ ...prev, url: data.url }));
       setToastMessage("Image uploaded successfully!");
     } catch (err) {
@@ -442,7 +433,7 @@ export default function WebsiteContent() {
                     <div key={img.id} className="relative rounded-xl overflow-hidden group border border-outline-variant/30 h-40 select-none">
                       <img 
                         src={img.url.startsWith("/uploads") 
-                          ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${img.url}` 
+                          ? getFullImageUrl(img.url) 
                           : img.url} 
                         alt={img.caption} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
@@ -483,7 +474,7 @@ export default function WebsiteContent() {
                             <div className="mt-2 h-20 w-32 border border-outline-variant/30 rounded-lg overflow-hidden relative select-none">
                               <img 
                                 src={newGalleryItem.url.startsWith("/uploads") 
-                                  ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${newGalleryItem.url}` 
+                                  ? getFullImageUrl(newGalleryItem.url) 
                                   : newGalleryItem.url} 
                                 alt="Preview" 
                                 className="w-full h-full object-cover" 

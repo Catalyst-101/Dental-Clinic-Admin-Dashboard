@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
 import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
-import { apiFetch } from "../utils/apiClient";
+import { apiFetch, getFullImageUrl } from "../utils/apiClient";
 
 export default function Admins() {
   const navigate = useNavigate();
@@ -308,7 +308,7 @@ export default function Admins() {
                         <div className="flex items-center gap-3">
                           <img
                             src={admin.profilePicture && admin.profilePicture.startsWith("/uploads")
-                              ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${admin.profilePicture}`
+                              ? getFullImageUrl(admin.profilePicture)
                               : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(admin.name)}`
                             }
                             alt="avatar"

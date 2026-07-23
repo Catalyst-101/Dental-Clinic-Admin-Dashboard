@@ -1,36 +1,32 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import api, { getFullImageUrl } from "../api/axios";
 
-const getToken = () => {
-  return localStorage.getItem("token") || sessionStorage.getItem("token");
-};
-
-const getAuthHeaders = () => {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+export { api, getFullImageUrl };
 
 export const apiFetch = async (path, options = {}) => {
-  const headers = {
-    "Content-Type": "application/json",
-    ...getAuthHeaders(),
-    ...options.headers
+  const method = (options.method || "GET").toLowerCase();
+
+  const config = {
+    method,
+    url: path,
+    headers: { ...options.headers },
   };
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-
-  const responseBody = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const error = new Error(responseBody.message || "Request failed");
-    error.response = responseBody;
-    throw error;
+  if (options.body) {
+    if (options.body instanceof FormData) {
+      config.data = options.body;
+    } else if (typeof options.body === "object") {
+      config.data = options.body;
+    } else {
+      try {
+        config.data = JSON.parse(options.body);
+      } catch {
+        config.data = options.body;
+      }
+    }
   }
 
-  return responseBody;
+  const response = await api(config);
+  return response.data;
 };
 
 export const logout = () => {
