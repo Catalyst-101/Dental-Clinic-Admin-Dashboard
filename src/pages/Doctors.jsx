@@ -2,108 +2,81 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
-import { STATIC_DOCTORS } from "../data/staticDoctors";
+import DoctorForm from "../components/DoctorForm";
+import {
+  getDoctors,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
+  toggleDoctorStatus
+} from "../api/doctors";
+import { getFullImageUrl, parseErrorMessage } from "../api/axios";
 
 export default function Doctors({ defaultCategory = "All" }) {
-  // Initialize state with static doctors
-  const [doctors, setDoctors] = useState(STATIC_DOCTORS);
+  const [doctors, setDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Modal & Overlay States
+  const [selectedCategory, setSelectedCategory] = useState(defaultCategory);
+
+  // Modals & Overlays
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  // Loading & Toast States
-  const [isLoading, setIsLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  // Loading & Feedback
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Onboard Form State
-  const [formData, setFormData] = useState({
-    name: "",
-    category: defaultCategory === "All" ? "Dentist" : defaultCategory,
-    title: "",
-    experience: "",
-    nextSlot: "",
-    status: "Available",
-    bio: "",
-    credentials: "",
-    image: "",
-    schedule: "Monday - Friday: 9:00 AM - 5:00 PM"
-  });
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
-  // Reset category in form if defaultCategory changes
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      category: defaultCategory === "All" ? "Dentist" : defaultCategory
-    }));
+    setSelectedCategory(defaultCategory);
   }, [defaultCategory]);
 
-  // Auto-clear toast
+  // Fetch Doctor List from Backend API
+  const fetchDoctorList = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await getDoctors({ category: selectedCategory });
+      if (res && res.success) {
+        setDoctors(res.data || []);
+      } else {
+        setDoctors([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch doctors:", err);
+      const friendlyErr = parseErrorMessage(err, "Unable to load practitioners catalog from server.");
+      setErrorMessage(friendlyErr);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(""), 3000);
+    fetchDoctorList();
+  }, [selectedCategory]);
+
+  // Auto clear toast
+  useEffect(() => {
+    if (toast.message) {
+      const timer = setTimeout(() => setToast({ message: "", type: "success" }), 4000);
       return () => clearTimeout(timer);
     }
-  }, [toastMessage]);
+  }, [toast.message]);
 
-  const handleInputChange = (e) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+  const openAddModal = () => {
+    setSelectedDoctor(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleOnboardSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.title || !formData.experience) {
-      alert("Name, title, and experience are required.");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsOnboardModalOpen(false);
-      // In a real application, we would push to doctors. In UI demo, we simulate success.
-      setToastMessage(`${formData.name} onboarded successfully (UI demo only)!`);
-    }, 1200);
-  };
-
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsEditModalOpen(false);
-      setToastMessage(`Doctor profile updated (UI demo only)!`);
-    }, 1200);
-  };
-
-  const handleDeleteConfirm = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsDeleteModalOpen(false);
-      setToastMessage(`Doctor removed from listing (UI demo only)!`);
-    }, 1200);
-  };
-
-  const openOnboardModal = () => {
-    setFormData({
-      name: "",
-      category: defaultCategory === "All" ? "Dentist" : defaultCategory,
-      title: "",
-      experience: "",
-      nextSlot: "Today, 10:00 AM",
-      status: "Available",
-      bio: "",
-      credentials: "",
-      image: "",
-      schedule: "Monday - Friday: 9:00 AM - 5:00 PM"
-    });
-    setIsOnboardModalOpen(true);
+  const openEditModal = (doctor) => {
+    setSelectedDoctor(doctor);
+    setIsFormModalOpen(true);
   };
 
   const openViewModal = (doctor) => {
@@ -111,37 +84,86 @@ export default function Doctors({ defaultCategory = "All" }) {
     setIsViewModalOpen(true);
   };
 
-  const openEditModal = (doctor) => {
-    setSelectedDoctor(doctor);
-    setFormData({
-      name: doctor.name,
-      category: doctor.category,
-      title: doctor.title,
-      experience: doctor.experience,
-      nextSlot: doctor.nextSlot,
-      status: doctor.status,
-      bio: doctor.bio || "",
-      credentials: doctor.credentials || "",
-      image: doctor.image || "",
-      schedule: (doctor.schedule && doctor.schedule.join(", ")) || "Monday - Friday: 9:00 AM - 5:00 PM"
-    });
-    setIsEditModalOpen(true);
-  };
-
   const openDeleteModal = (doctor) => {
     setSelectedDoctor(doctor);
     setIsDeleteModalOpen(true);
   };
 
-  // Filter based on route (defaultCategory) + search query
+  const handleFormSubmit = async (formData) => {
+    setIsSubmitting(true);
+    try {
+      if (selectedDoctor) {
+        // Edit Mode
+        const id = selectedDoctor._id || selectedDoctor.slug || selectedDoctor.customId;
+        const res = await updateDoctor(id, formData);
+        showToast(`Practitioner "${res.data?.name || formData.name}" updated successfully!`, "success");
+      } else {
+        // Create Mode
+        const res = await createDoctor(formData);
+        showToast(`Practitioner "${res.data?.name || formData.name}" onboarded successfully!`, "success");
+      }
+      setIsFormModalOpen(false);
+      setSelectedDoctor(null);
+      await fetchDoctorList();
+    } catch (err) {
+      console.error("Error saving practitioner:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to save doctor details. Please verify your inputs.");
+      showToast(friendlyErr, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedDoctor) return;
+    setIsSubmitting(true);
+    try {
+      const id = selectedDoctor._id || selectedDoctor.slug || selectedDoctor.customId;
+      await deleteDoctor(id);
+      showToast(`Practitioner "${selectedDoctor.name}" offboarded successfully.`, "success");
+      setIsDeleteModalOpen(false);
+      setSelectedDoctor(null);
+      await fetchDoctorList();
+    } catch (err) {
+      console.error("Failed to delete doctor:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to delete doctor record.");
+      showToast(friendlyErr, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (doctor) => {
+    const id = doctor._id || doctor.slug || doctor.customId;
+    const nextStatus = !doctor.isActive;
+    try {
+      await toggleDoctorStatus(id, nextStatus);
+      setDoctors((prev) =>
+        prev.map((d) => (d._id === doctor._id || d.slug === doctor.slug ? { ...d, isActive: nextStatus } : d))
+      );
+      showToast(
+        `Practitioner "${doctor.name}" visibility changed to ${nextStatus ? "Active" : "Inactive"}`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Failed to toggle status:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to update practitioner status.");
+      showToast(friendlyErr, "error");
+    }
+  };
+
+  const categories = ["All", "Dentist", "Hygienist", "Surgeon", "Receptionist"];
+
   const filteredDoctors = doctors.filter((doc) => {
     const matchesCategory =
-      defaultCategory === "All" || doc.category.toLowerCase() === defaultCategory.toLowerCase();
-    
+      selectedCategory === "All" ||
+      (doc.category && doc.category.toLowerCase() === selectedCategory.toLowerCase());
+
     const matchesSearch =
       doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.credentials.toLowerCase().includes(searchTerm.toLowerCase());
+      (doc.specialization && doc.specialization.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (doc.title && doc.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (doc.qualifications && doc.qualifications.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return matchesCategory && matchesSearch;
   });
@@ -149,7 +171,7 @@ export default function Doctors({ defaultCategory = "All" }) {
   return (
     <div className="flex flex-col flex-grow w-full">
       <TopBar
-        placeholder={`Search ${defaultCategory === "All" ? "doctors" : defaultCategory.toLowerCase() + "s"}...`}
+        placeholder="Search doctors, specializations, credentials..."
         onSearchChange={(val) => setSearchTerm(val)}
       />
 
@@ -158,658 +180,381 @@ export default function Doctors({ defaultCategory = "All" }) {
         <div className="header-bar flex items-end justify-between flex-wrap gap-4 border-b border-outline-variant/20 pb-4 select-none">
           <div className="header-title space-y-1">
             <h1 className="text-headline-md font-headline-md text-on-surface font-extrabold tracking-tight">
-              {defaultCategory === "All" ? "Doctor Directory" : `${defaultCategory}s Directory`}
+              Practitioners & Doctors Management
             </h1>
             <p className="text-body-md text-on-surface-variant opacity-80">
-              Manage your clinic's professional staff credentials, bios, and listings.
+              Manage clinical staff profiles, qualifications, schedules, and active availability.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={openOnboardModal}
-              className="bg-primary text-on-primary py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-95 transition-opacity shadow-md cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">person_add</span>
-              <span className="text-label-md">Onboard Doctor</span>
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
-          {/* Doctor Cards */}
-          {filteredDoctors.map((doc) => (
-            <motion.div
-              key={doc.id}
-              whileHover={{ y: -4 }}
-              className="glass-card rounded-xl p-6 transition-all hover:shadow-xl flex flex-col justify-between border border-outline-variant/30"
-            >
-              <div>
-                <div className="flex justify-between items-start mb-6">
-                  <div className="relative">
-                    <img
-                      className="w-24 h-24 rounded-2xl object-cover border-4 border-surface-container-lowest shadow-sm bg-surface-container"
-                      alt={`${doc.name} Profile`}
-                      src={doc.image || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(doc.name)}`}
-                    />
-                    {doc.rating && doc.rating.includes("4.9") && (
-                      <div className="absolute -bottom-2 -right-2 bg-secondary-fixed text-on-secondary-container px-2 py-0.5 rounded-full text-[10px] font-black border-2 border-surface-container-lowest shadow-sm select-none">
-                        TOP RATED
-                      </div>
-                    )}
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-label-sm flex items-center gap-1.5 font-bold ${
-                    doc.status === "Available" ? "bg-emerald-100 text-emerald-700" :
-                    doc.status === "In Meeting" ? "bg-surface-variant text-on-surface-variant" :
-                    "bg-error-container/20 text-error"
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                      doc.status === "Available" ? "bg-emerald-500 animate-pulse" :
-                      doc.status === "In Meeting" ? "bg-on-surface-variant/40" :
-                      "bg-error"
-                    }`}></span>
-                    {doc.status}
-                  </span>
-                </div>
-
-                <div className="space-y-1 mb-4 select-none">
-                  <h3 className="text-headline-sm font-headline-sm text-on-surface font-extrabold">{doc.name}</h3>
-                  <p className="text-primary font-bold text-label-md">{doc.title}</p>
-                  <p className="text-xs text-on-surface-variant/60 font-mono">{doc.id}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6 select-none">
-                  <div className="bg-surface-container-low/60 p-3 rounded-lg border border-outline-variant/10">
-                    <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Experience</p>
-                    <p className="text-body-md font-extrabold text-on-surface mt-0.5">{doc.experience}</p>
-                  </div>
-                  <div className="bg-surface-container-low/60 p-3 rounded-lg border border-outline-variant/10">
-                    <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Next Slot</p>
-                    <p className="text-body-md font-extrabold text-primary mt-0.5 truncate">{doc.nextSlot}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => openEditModal(doc)}
-                  className="flex-1 bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface px-4 py-2.5 rounded-lg text-label-sm font-bold transition-all border border-outline-variant/20 cursor-pointer"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => openViewModal(doc)}
-                  className="flex-[2] bg-primary text-on-primary px-4 py-2.5 rounded-lg text-label-sm font-bold hover:opacity-95 transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  View Profile
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </button>
-              </div>
-            </motion.div>
-          ))}
-
-          {/* Empty Add Card */}
-          <motion.div
-            onClick={openOnboardModal}
-            whileHover={{ scale: 0.99 }}
-            className="border-2 border-dashed border-outline-variant/50 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-surface-container-low/40 transition-all cursor-pointer group min-h-[300px]"
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={openAddModal}
+            className="bg-primary text-on-primary py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-95 transition-opacity shadow-md cursor-pointer text-sm"
           >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform shadow-sm">
-              <span className="material-symbols-outlined text-3xl">add_circle</span>
-            </div>
-            <h3 className="text-headline-sm font-headline-sm text-on-surface font-bold mb-1">Onboard New Doctor</h3>
-            <p className="text-body-md text-on-surface-variant/80 px-4">
-              Add credentials, set biography, and initialize work availability.
-            </p>
-          </motion.div>
+            <span className="material-symbols-outlined text-[20px]">person_add</span>
+            <span>Onboard Practitioner</span>
+          </motion.button>
         </div>
+
+        {/* Filter Chips */}
+        <div className="flex items-center justify-between flex-wrap gap-3 select-none">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  selectedCategory === cat
+                    ? "bg-primary text-on-primary shadow-xs"
+                    : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant"
+                }`}
+              >
+                {cat === "All" ? "All Staff" : cat}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-on-surface-variant font-semibold">
+            Total Staff: <span className="text-primary font-bold">{filteredDoctors.length}</span>
+          </div>
+        </div>
+
+        {/* Error Notification */}
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span className="font-medium">{errorMessage}</span>
+            </div>
+            <button
+              onClick={fetchDoctorList}
+              className="px-3.5 py-1.5 bg-error text-white rounded-lg text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-semibold text-on-surface-variant">Loading practitioners catalog...</p>
+          </div>
+        ) : filteredDoctors.length === 0 ? (
+          /* Empty State */
+          <div className="glass-card rounded-2xl p-12 text-center border border-outline-variant/30 flex flex-col items-center space-y-3">
+            <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined text-[36px]">stethoscope</span>
+            </div>
+            <h3 className="text-lg font-bold text-on-surface">No practitioners found</h3>
+            <p className="text-xs text-on-surface-variant max-w-sm">
+              No doctors match your category filter or search query. Click "Onboard Practitioner" to add your first profile.
+            </p>
+            <button
+              onClick={openAddModal}
+              className="mt-2 bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">person_add</span> Onboard Practitioner
+            </button>
+          </div>
+        ) : (
+          /* Doctors Table */
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 glass-card">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/20 bg-surface-container/50 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant select-none">
+                    <th className="py-3.5 px-4">Profile</th>
+                    <th className="py-3.5 px-4">Practitioner Name</th>
+                    <th className="py-3.5 px-4">Specialization / Title</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Experience</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/10 text-sm">
+                  {filteredDoctors.map((doc) => (
+                    <tr key={doc._id || doc.slug || doc.customId} className="hover:bg-surface-container/30 transition-colors">
+                      {/* Thumbnail Image */}
+                      <td className="py-3 px-4">
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-surface-container border border-outline-variant/30 shrink-0">
+                          <img
+                            src={getFullImageUrl(doc.image) || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200"}
+                            alt={doc.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Name & Qualifications */}
+                      <td className="py-3 px-4">
+                        <span className="font-bold text-on-surface block leading-tight">{doc.name}</span>
+                        <span className="text-[11px] text-on-surface-variant opacity-70">
+                          {doc.qualifications || doc.credentials || "Medical Practitioner"}
+                        </span>
+                      </td>
+
+                      {/* Specialization */}
+                      <td className="py-3 px-4 text-xs font-semibold text-on-surface">
+                        {doc.specialization || doc.title}
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-3 px-4">
+                        <span className="px-2.5 py-1 rounded-md bg-surface-container text-on-surface-variant text-[10px] tracking-wider uppercase font-bold">
+                          {doc.category || "Dentist"}
+                        </span>
+                      </td>
+
+                      {/* Experience */}
+                      <td className="py-3 px-4 text-xs text-on-surface-variant font-semibold">
+                        {doc.experience}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleToggleStatus(doc)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                            doc.isActive !== false
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
+                          }`}
+                          title="Click to toggle active status"
+                        >
+                          <span className={`w-2 h-2 rounded-full ${doc.isActive !== false ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+                          <span>{doc.isActive !== false ? "Active" : "Inactive"}</span>
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openViewModal(doc)}
+                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg cursor-pointer"
+                            title="View Profile Details"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">visibility</span>
+                          </button>
+
+                          <button
+                            onClick={() => openEditModal(doc)}
+                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg cursor-pointer"
+                            title="Edit Profile"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+
+                          <button
+                            onClick={() => openDeleteModal(doc)}
+                            className="p-1.5 text-error hover:bg-error/10 rounded-lg cursor-pointer"
+                            title="Delete Doctor"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ==================== ONBOARD DOCTOR MODAL ==================== */}
-      <AnimatePresence>
-        {isOnboardModalOpen && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsOnboardModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
+      {/* CREATE / EDIT DOCTOR MODAL */}
+      {isFormModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-lg w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
+              className="bg-surface rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 max-h-[90vh] overflow-y-auto"
             >
-              {!isLoading && (
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
+                <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">
+                    {selectedDoctor ? "edit_note" : "person_add"}
+                  </span>
+                  <span>{selectedDoctor ? "Edit Doctor Profile" : "Onboard Practitioner"}</span>
+                </h2>
                 <button
-                  onClick={() => setIsOnboardModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
+                  onClick={() => setIsFormModalOpen(false)}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container rounded-lg cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
+                  <span className="material-symbols-outlined">close</span>
                 </button>
-              )}
-
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-on-surface mb-4 flex items-center gap-2 select-none border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-primary text-[28px]">person_add</span>
-                Onboard Practitioner
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-primary text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Creating Practitioner Account...</p>
-                </div>
-              ) : (
-                <form onSubmit={handleOnboardSubmit} className="space-y-4 text-left">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="name"
-                        required
-                        placeholder="Dr. Eleanor Vance"
-                        type="text"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="category">Staff Category</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                      >
-                        <option value="Dentist">Dentist</option>
-                        <option value="Hygienist">Hygienist</option>
-                        <option value="Surgeon">Oral Surgeon</option>
-                        <option value="Receptionist">Receptionist</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="title">Specialization / Title</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="title"
-                        required
-                        placeholder="Pediatric Dentist"
-                        type="text"
-                        value={formData.title}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="experience">Years of Experience</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="experience"
-                        required
-                        placeholder="7 Years"
-                        type="text"
-                        value={formData.experience}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="nextSlot">First Availability Slot</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="nextSlot"
-                        placeholder="Today, 3:30 PM"
-                        type="text"
-                        value={formData.nextSlot}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="status">Listing Status</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="status"
-                        value={formData.status}
-                        onChange={handleInputChange}
-                      >
-                        <option value="Available">Available</option>
-                        <option value="In Meeting">In Meeting</option>
-                        <option value="Out of Office">Out of Office</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="image">Profile Image URL</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="image"
-                      placeholder="https://images.unsplash.com/..."
-                      type="url"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                    {formData.image && (
-                      <div className="mt-2 text-center">
-                        <p className="text-[10px] text-on-surface-variant uppercase tracking-wide font-bold mb-1">Image Preview</p>
-                        <img
-                          src={formData.image}
-                          alt="Preview"
-                          className="w-16 h-16 rounded-xl object-cover mx-auto border border-outline-variant shadow-sm"
-                          onError={(e) => { e.target.src = "https://api.dicebear.com/7.x/initials/svg?seed=preview" }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="credentials">Medical Credentials</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="credentials"
-                      placeholder="DDS, Fellowship in Pediatric Dentistry"
-                      type="text"
-                      value={formData.credentials}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="bio">Professional Biography</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="bio"
-                      placeholder="Provide details about the practitioner's medical approach and experience..."
-                      rows="3"
-                      value={formData.bio}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/20 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setIsOnboardModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Onboard Staff
-                    </button>
-                  </div>
-                </form>
-              )}
-            </motion.div>
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
-
-      {/* ==================== VIEW DOCTOR PROFILE MODAL ==================== */}
-      <AnimatePresence>
-        {isViewModalOpen && selectedDoctor && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsViewModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-2xl w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
-            >
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-
-              <div className="flex flex-col sm:flex-row gap-6 border-b border-outline-variant/20 pb-5 mb-5 select-none">
-                <img
-                  className="w-28 h-28 rounded-2xl object-cover border-4 border-surface-container-lowest shadow-md self-center sm:self-start bg-surface-container"
-                  src={selectedDoctor.image || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedDoctor.name)}`}
-                  alt={selectedDoctor.name}
-                />
-                <div className="text-center sm:text-left space-y-1.5 self-center">
-                  <h2 className="text-headline-md font-headline-md text-on-surface font-extrabold">{selectedDoctor.name}</h2>
-                  <p className="text-primary font-bold text-label-md flex items-center justify-center sm:justify-start gap-1">
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
-                    {selectedDoctor.title}
-                  </p>
-                  <p className="text-xs text-on-surface-variant font-mono">{selectedDoctor.id} • {selectedDoctor.category}</p>
-                  <p className="text-label-sm text-on-surface-variant font-semibold mt-1">Credentials: <span className="text-on-surface">{selectedDoctor.credentials}</span></p>
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Biography</h4>
-                    <p className="text-body-md text-on-surface leading-relaxed">{selectedDoctor.bio || "No biography provided yet."}</p>
+              <DoctorForm
+                initialData={selectedDoctor}
+                defaultCategory={selectedCategory}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setIsFormModalOpen(false)}
+                isSubmitting={isSubmitting}
+              />
+            </motion.div>
+          </div>,
+          document.body
+        )}
+
+      {/* VIEW DOCTOR PROFILE MODAL */}
+      {isViewModalOpen && selectedDoctor &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 max-h-[85vh] overflow-y-auto text-on-surface"
+            >
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-surface-container border border-outline-variant/30 shrink-0">
+                    <img
+                      src={getFullImageUrl(selectedDoctor.image)}
+                      alt={selectedDoctor.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Years of Experience</h4>
-                    <p className="text-body-md font-bold text-on-surface">{selectedDoctor.experience}</p>
+                    <h2 className="text-xl font-extrabold">{selectedDoctor.name}</h2>
+                    <p className="text-xs font-semibold text-primary">
+                      {selectedDoctor.specialization || selectedDoctor.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container rounded-lg cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3 bg-surface-container/40 p-3 rounded-xl">
+                  <div>
+                    <span className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider block">Qualifications</span>
+                    <span className="font-semibold text-on-surface">{selectedDoctor.qualifications || selectedDoctor.credentials || "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider block">Experience</span>
+                    <span className="font-semibold text-on-surface">{selectedDoctor.experience}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider block">Availability</span>
+                    <span className="font-semibold text-on-surface">{selectedDoctor.availability}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider block">Languages</span>
+                    <span className="font-semibold text-on-surface">{selectedDoctor.languages}</span>
                   </div>
                 </div>
 
-                <div className="space-y-4 border-l border-outline-variant/20 pl-0 md:pl-6">
+                {selectedDoctor.bio && (
                   <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Consultation Schedule</h4>
-                    <ul className="space-y-1">
-                      {selectedDoctor.schedule && selectedDoctor.schedule.map((item, idx) => (
-                        <li key={idx} className="text-body-md text-on-surface-variant font-semibold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-primary text-[16px]">schedule</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <h4 className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider mb-1">Biography</h4>
+                    <p className="text-body-md text-on-surface whitespace-pre-line leading-relaxed">{selectedDoctor.bio}</p>
                   </div>
+                )}
 
+                {selectedDoctor.schedule && selectedDoctor.schedule.length > 0 && (
                   <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Patient Reviews</h4>
-                    <div className="space-y-3">
-                      {selectedDoctor.reviews && selectedDoctor.reviews.map((rev, idx) => (
-                        <div key={idx} className="bg-surface-container-lowest border border-outline-variant/30 p-3 rounded-xl shadow-xs">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-extrabold text-on-surface">{rev.patient}</span>
-                            <span className="text-xs font-bold text-secondary flex items-center gap-0.5">
-                              <span className="material-symbols-outlined text-[12px] fill-current">star</span>
-                              {rev.rating}/5
-                            </span>
-                          </div>
-                          <p className="text-xs text-on-surface-variant/80 italic">"{rev.comment}"</p>
+                    <h4 className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider mb-1.5">Schedule</h4>
+                    <div className="space-y-1">
+                      {selectedDoctor.schedule.map((slot, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-outline-variant/10">
+                          <span className="font-bold">{typeof slot === "string" ? "Schedule" : slot.day}</span>
+                          <span className="text-on-surface-variant">{typeof slot === "string" ? slot : slot.time}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-outline-variant/20 select-none">
+              <div className="pt-3 border-t border-outline-variant/20 flex justify-end gap-2">
                 <button
-                  type="button"
-                  onClick={() => openDeleteModal(selectedDoctor)}
-                  className="bg-error/5 hover:bg-error/10 text-error font-semibold px-4 py-2.5 rounded-xl transition-all text-label-sm cursor-pointer mr-auto"
-                >
-                  Remove Practitioner
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setIsViewModalOpen(false);
                     openEditModal(selectedDoctor);
                   }}
-                  className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
+                  className="bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Edit Profile
                 </button>
               </div>
             </motion.div>
-          </motion.div>,
+          </div>,
           document.body
         )}
-      </AnimatePresence>
 
-      {/* ==================== EDIT DOCTOR MODAL ==================== */}
-      <AnimatePresence>
-        {isEditModalOpen && selectedDoctor && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsEditModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
+      {/* DELETE CONFIRMATION MODAL */}
+      {isDeleteModalOpen && selectedDoctor &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-lg w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
+              className="bg-surface rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 text-on-surface"
             >
-              {!isLoading && (
+              <div className="flex items-center gap-3 text-error">
+                <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined">warning</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Offboard Practitioner</h3>
+                  <p className="text-xs text-on-surface-variant">This action cannot be undone.</p>
+                </div>
+              </div>
+
+              <p className="text-sm">
+                Are you sure you want to offboard <span className="font-bold text-on-surface">"{selectedDoctor.name}"</span> from clinic records?
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
+                  Cancel
                 </button>
-              )}
-
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-on-surface mb-4 flex items-center gap-2 select-none border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-primary text-[28px]">edit</span>
-                Edit Doctor Profile
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-primary text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Saving Changes...</p>
-                </div>
-              ) : (
-                <form onSubmit={handleEditSubmit} className="space-y-4 text-left">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="name">Full Name</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="name"
-                        required
-                        type="text"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="category">Staff Category</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                      >
-                        <option value="Dentist">Dentist</option>
-                        <option value="Hygienist">Hygienist</option>
-                        <option value="Surgeon">Oral Surgeon</option>
-                        <option value="Receptionist">Receptionist</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="title">Specialization / Title</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="title"
-                        required
-                        type="text"
-                        value={formData.title}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="experience">Years of Experience</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="experience"
-                        required
-                        type="text"
-                        value={formData.experience}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="nextSlot">First Availability Slot</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="nextSlot"
-                        type="text"
-                        value={formData.nextSlot}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="status">Listing Status</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="status"
-                        value={formData.status}
-                        onChange={handleInputChange}
-                      >
-                        <option value="Available">Available</option>
-                        <option value="In Meeting">In Meeting</option>
-                        <option value="Out of Office">Out of Office</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="image">Profile Image URL</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="image"
-                      type="url"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="credentials">Medical Credentials</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="credentials"
-                      type="text"
-                      value={formData.credentials}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="bio">Biography</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="bio"
-                      rows="3"
-                      value={formData.bio}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/20 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Discard
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Save Profile
-                    </button>
-                  </div>
-                </form>
-              )}
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-error text-white rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Offboarding..." : "Offboard Doctor"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>,
+          </div>,
           document.body
         )}
-      </AnimatePresence>
 
-      {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
+      {/* CUSTOM TOAST NOTIFICATION */}
       <AnimatePresence>
-        {isDeleteModalOpen && selectedDoctor && createPortal(
+        {toast.message && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsDeleteModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold text-white ${
+              toast.type === "error" ? "bg-red-600" : "bg-emerald-600"
+            }`}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-sm w-full border border-outline-variant/30 p-6 relative select-none"
-            >
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-error mb-2 flex items-center gap-2 border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-[28px]">warning</span>
-                Offboard Practitioner
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-6">
-                  <span className="material-symbols-outlined animate-spin text-error text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Processing Offboarding...</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-body-md text-on-surface-variant leading-relaxed">
-                    Are you sure you want to remove <strong className="text-on-surface">{selectedDoctor.name}</strong> ({selectedDoctor.title}) from the active practitioners registry? This will cancel their profile visibility.
-                  </p>
-
-                  <div className="flex justify-end gap-3 pt-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsDeleteModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-4 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeleteConfirm}
-                      className="bg-error text-white font-bold px-5 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Confirm Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
-
-      {/* ==================== TOAST NOTIFICATION ==================== */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-[99999] bg-inverse-surface text-inverse-on-surface px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 border border-outline-variant/20 select-none max-w-sm"
-          >
-            <span className="material-symbols-outlined text-secondary-fixed">check_circle</span>
-            <span className="text-label-md font-bold leading-tight">{toastMessage}</span>
+            <span className="material-symbols-outlined text-xl">
+              {toast.type === "error" ? "error_outline" : "check_circle"}
+            </span>
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
