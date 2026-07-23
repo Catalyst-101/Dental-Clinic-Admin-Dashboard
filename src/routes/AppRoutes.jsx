@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Sidebar } from "../components/Sidebar";
 import { Dashboard } from "../pages/Dashboard";
 import LoginPage from "../pages/LoginPage";
-import BookAppointment from "../pages/BookAppointment";
 import Patients from "../pages/Patients";
 import Appointments from "../pages/Appointments";
 import Doctors from "../pages/Doctors";
@@ -44,7 +43,7 @@ const Layout = () => {
   };
 
   const handleNewAppointment = () => {
-    navigate("/book-appointment");
+    navigate("/appointments");
   };
 
   return (
@@ -69,11 +68,6 @@ const Layout = () => {
           <Route
             path="/dashboard"
             element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
-          />
-
-          <Route
-            path="/book-appointment"
-            element={<ProtectedRoute><BookAppointment /></ProtectedRoute>}
           />
 
           <Route
