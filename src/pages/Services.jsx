@@ -2,97 +2,77 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
-import { STATIC_SERVICES } from "../data/staticServices";
+import ServiceForm from "../components/ServiceForm";
+import {
+  getServices,
+  createService,
+  updateService,
+  deleteService,
+  toggleServiceStatus
+} from "../api/services";
+import { getFullImageUrl, parseErrorMessage } from "../api/axios";
 
 export default function Services() {
-  const [services, setServices] = useState(STATIC_SERVICES);
+  const [services, setServices] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // Modal & Overlay States
+  // Modals & Overlays
   const [selectedService, setSelectedService] = useState(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  // Loading & Toast States
-  const [isLoading, setIsLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  // Loading & Feedback
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Form State
-  const [formData, setFormData] = useState({
-    title: "",
-    tagline: "",
-    category: "General Dentistry",
-    price: "",
-    summary: "",
-    image: "",
-    benefits: "",
-    faqs: "",
-    recoveryTips: ""
-  });
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
-  // Auto-clear toast
+  // Load Services from API
+  const fetchServiceList = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await getServices();
+      if (res && res.success) {
+        setServices(res.data || []);
+      } else {
+        setServices([]);
+      }
+    } catch (err) {
+      console.error("Failed to load services:", err);
+      const friendlyErr = parseErrorMessage(err, "Unable to load service catalog from backend API.");
+      setErrorMessage(friendlyErr);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(""), 3000);
+    fetchServiceList();
+  }, []);
+
+  // Auto clear toast
+  useEffect(() => {
+    if (toast.message) {
+      const timer = setTimeout(() => setToast({ message: "", type: "success" }), 4000);
       return () => clearTimeout(timer);
     }
-  }, [toastMessage]);
-
-  const handleInputChange = (e) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleAddSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.title || !formData.price || !formData.summary) {
-      alert("Title, price, and summary are required.");
-      return;
-    }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsAddModalOpen(false);
-      setToastMessage(`Service "${formData.title}" added successfully (UI demo only)!`);
-    }, 1200);
-  };
-
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsEditModalOpen(false);
-      setToastMessage(`Service details updated (UI demo only)!`);
-    }, 1200);
-  };
-
-  const handleDeleteConfirm = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsDeleteModalOpen(false);
-      setToastMessage(`Service deleted from system catalogs (UI demo only)!`);
-    }, 1200);
-  };
+  }, [toast.message]);
 
   const openAddModal = () => {
-    setFormData({
-      title: "",
-      tagline: "",
-      category: "General Dentistry",
-      price: "",
-      summary: "",
-      image: "",
-      benefits: "Highly effective treatment\nImproves dental health\nQuick session time",
-      faqs: "Q: Is this safe?\nA: Yes, all clinical procedures are FDA approved.",
-      recoveryTips: "Drink plenty of water.\nMaintain standard brushing routine."
-    });
-    setIsAddModalOpen(true);
+    setSelectedService(null);
+    setIsFormModalOpen(true);
+  };
+
+  const openEditModal = (service) => {
+    setSelectedService(service);
+    setIsFormModalOpen(true);
   };
 
   const openViewModal = (service) => {
@@ -100,45 +80,92 @@ export default function Services() {
     setIsViewModalOpen(true);
   };
 
-  const openEditModal = (service) => {
-    setSelectedService(service);
-    setFormData({
-      title: service.title,
-      tagline: service.tagline || "",
-      category: service.category,
-      price: service.price,
-      summary: service.summary,
-      image: service.image || "",
-      benefits: service.benefits ? service.benefits.join("\n") : "",
-      faqs: service.faqs ? service.faqs.map(f => `Q: ${f.q}\nA: ${f.a}`).join("\n\n") : "",
-      recoveryTips: service.recoveryTips ? service.recoveryTips.join("\n") : ""
-    });
-    setIsEditModalOpen(true);
-  };
-
   const openDeleteModal = (service) => {
     setSelectedService(service);
     setIsDeleteModalOpen(true);
   };
 
-  const categories = ["All", "General Dentistry", "Cosmetic", "Orthodontics", "Surgery"];
+  const handleFormSubmit = async (formData) => {
+    setIsSubmitting(true);
+    try {
+      if (selectedService) {
+        // Edit Mode
+        const id = selectedService._id || selectedService.slug;
+        const res = await updateService(id, formData);
+        showToast(`Service "${res.data?.title || formData.title}" updated successfully!`, "success");
+      } else {
+        // Create Mode
+        const res = await createService(formData);
+        showToast(`Service "${res.data?.title || formData.title}" published successfully!`, "success");
+      }
+      setIsFormModalOpen(false);
+      setSelectedService(null);
+      await fetchServiceList();
+    } catch (err) {
+      console.error("Error saving service:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to save service details. Please verify your inputs.");
+      showToast(friendlyErr, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedService) return;
+    setIsSubmitting(true);
+    try {
+      const id = selectedService._id || selectedService.slug;
+      await deleteService(id);
+      showToast(`Service "${selectedService.title}" deleted successfully.`, "success");
+      setIsDeleteModalOpen(false);
+      setSelectedService(null);
+      await fetchServiceList();
+    } catch (err) {
+      console.error("Failed to delete service:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to delete service record.");
+      showToast(friendlyErr, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (service) => {
+    const id = service._id || service.slug;
+    const nextStatus = !service.isActive;
+    try {
+      await toggleServiceStatus(id, nextStatus);
+      setServices((prev) =>
+        prev.map((s) => (s._id === service._id || s.slug === service.slug ? { ...s, isActive: nextStatus } : s))
+      );
+      showToast(
+        `Service "${service.title}" visibility changed to ${nextStatus ? "Active" : "Inactive"}`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Failed to toggle status:", err);
+      const friendlyErr = parseErrorMessage(err, "Failed to update service status.");
+      showToast(friendlyErr, "error");
+    }
+  };
 
   const filteredServices = services.filter((svc) => {
-    const matchesCategory =
-      selectedCategory === "All" || svc.category.toLowerCase() === selectedCategory.toLowerCase();
+    const matchesStatus =
+      statusFilter === "All" ||
+      (statusFilter === "Active" && svc.isActive) ||
+      (statusFilter === "Inactive" && !svc.isActive);
 
     const matchesSearch =
       svc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      svc.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      svc.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (svc.tagline && svc.tagline.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (svc.summary && svc.summary.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    return matchesCategory && matchesSearch;
+    return matchesStatus && matchesSearch;
   });
 
   return (
     <div className="flex flex-col flex-grow w-full">
       <TopBar
-        placeholder="Search services, categories..."
+        placeholder="Search services, taglines..."
         onSearchChange={(val) => setSearchTerm(val)}
       />
 
@@ -150,618 +177,364 @@ export default function Services() {
               Services Management
             </h1>
             <p className="text-body-md text-on-surface-variant opacity-80">
-              Configure treatment plans, diagnostic packages, and public pricing schedules.
+              Manage clinical offerings, procedure steps, aftercare tips, and website visibility.
             </p>
           </div>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={openAddModal}
-            className="bg-primary text-on-primary py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-95 transition-opacity shadow-md cursor-pointer"
+            className="bg-primary text-on-primary py-2.5 px-5 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-95 transition-opacity shadow-md cursor-pointer text-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            <span className="text-label-md">Add New Service</span>
+            <span>Add New Service</span>
           </motion.button>
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2 select-none">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-label-sm font-bold transition-all cursor-pointer ${
-                selectedCategory === cat
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant"
-              }`}
-            >
-              {cat === "All" ? "All Services" : cat}
-            </button>
-          ))}
+        {/* Filter Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-3 select-none">
+          <div className="flex items-center gap-2">
+            {["All", "Active", "Inactive"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === status
+                    ? "bg-primary text-on-primary shadow-xs"
+                    : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant"
+                }`}
+              >
+                {status} Services
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-on-surface-variant font-semibold">
+            Total Services: <span className="text-primary font-bold">{filteredServices.length}</span>
+          </div>
         </div>
 
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
-          {filteredServices.map((svc) => (
-            <motion.div
-              key={svc.id}
-              whileHover={{ y: -4 }}
-              className="glass-card rounded-xl overflow-hidden hover:shadow-xl transition-all border border-outline-variant/30 flex flex-col justify-between"
-            >
-              <div className="relative h-48 overflow-hidden bg-surface-container select-none">
-                <img
-                  className="w-full h-full object-cover"
-                  alt={svc.title}
-                  src={svc.image || "https://images.unsplash.com/photo-1579684389782-64d84b5e905a?auto=format&fit=crop&q=80&w=600&h=300"}
-                />
-                <div className="absolute top-4 right-4">
-                  <span className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-black border border-surface-container-lowest/50 shadow-xs flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                    ACTIVE
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-6 flex-grow flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start mb-2 select-none">
-                    <p className="text-label-sm font-bold text-primary uppercase tracking-wider text-[11px]">{svc.category}</p>
-                    <p className="text-headline-sm font-extrabold text-primary">{svc.price}</p>
-                  </div>
-                  <h3 className="text-headline-sm font-extrabold text-on-surface mb-2 select-none">{svc.title}</h3>
-                  <p className="text-body-md text-on-surface-variant line-clamp-3 mb-6 leading-relaxed">
-                    {svc.summary}
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => openEditModal(svc)}
-                    className="flex-1 border border-outline-variant hover:bg-surface-container text-on-surface py-2.5 rounded-lg text-label-sm font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">edit</span>
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => openViewModal(svc)}
-                    className="flex-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold py-2.5 rounded-lg text-label-sm transition-all cursor-pointer"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {/* Add Service Card */}
-          <motion.div
-            onClick={openAddModal}
-            whileHover={{ scale: 0.99 }}
-            className="border-2 border-dashed border-outline-variant/50 rounded-xl flex flex-col items-center justify-center p-6 text-center hover:bg-surface-container-low/40 transition-all cursor-pointer group min-h-[350px]"
-          >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform shadow-sm">
-              <span className="material-symbols-outlined text-3xl">add_circle</span>
+        {/* Custom Error Banner (No Raw 404/Status Strings) */}
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span className="font-medium">{errorMessage}</span>
             </div>
-            <h3 className="text-headline-sm font-headline-sm text-on-surface font-bold mb-1">Add Treatment Service</h3>
-            <p className="text-body-md text-on-surface-variant/80 px-4">
-              Publish a new medical care plan, pricing structure, and portal details.
+            <button
+              onClick={fetchServiceList}
+              className="px-3.5 py-1.5 bg-error text-white rounded-lg text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-semibold text-on-surface-variant">Loading clinic services catalog...</p>
+          </div>
+        ) : filteredServices.length === 0 ? (
+          /* Empty State */
+          <div className="glass-card rounded-2xl p-12 text-center border border-outline-variant/30 flex flex-col items-center space-y-3">
+            <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined text-[36px]">medical_services</span>
+            </div>
+            <h3 className="text-lg font-bold text-on-surface">No services found</h3>
+            <p className="text-xs text-on-surface-variant max-w-sm">
+              No services match your search or filter. Click "Add New Service" to create a new clinical service.
             </p>
-          </motion.div>
-        </div>
+            <button
+              onClick={openAddModal}
+              className="mt-2 bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span> Add Service
+            </button>
+          </div>
+        ) : (
+          /* Services Table */
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 glass-card">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/20 bg-surface-container/50 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant select-none">
+                    <th className="py-3.5 px-4">Thumbnail</th>
+                    <th className="py-3.5 px-4">Service Name</th>
+                    <th className="py-3.5 px-4">Tagline</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Created Date</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/10 text-sm">
+                  {filteredServices.map((svc) => (
+                    <tr key={svc._id || svc.slug} className="hover:bg-surface-container/30 transition-colors">
+                      {/* Image Thumbnail */}
+                      <td className="py-3 px-4">
+                        <div className="w-14 h-10 rounded-lg overflow-hidden bg-surface-container border border-outline-variant/20 shrink-0">
+                          <img
+                            src={getFullImageUrl(svc.image) || "https://images.unsplash.com/photo-1579684389782-64d84b5e905a?auto=format&fit=crop&q=80&w=200"}
+                            alt={svc.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Title & Icon */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-primary-container/60 text-on-primary-container flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-[18px]">
+                              {svc.icon || "medical_services"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-on-surface block leading-tight">{svc.title}</span>
+                            <span className="text-[11px] text-on-surface-variant opacity-70 font-mono">
+                              /services/{svc.slug}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Tagline */}
+                      <td className="py-3 px-4 text-xs font-semibold text-on-surface-variant">
+                        {svc.tagline ? (
+                          <span className="px-2.5 py-1 rounded-md bg-surface-container text-on-surface-variant uppercase text-[10px] tracking-wider font-bold">
+                            {svc.tagline}
+                          </span>
+                        ) : (
+                          <span className="italic text-on-surface-variant/40">—</span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleToggleStatus(svc)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                            svc.isActive
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
+                          }`}
+                          title="Click to toggle visibility"
+                        >
+                          <span className={`w-2 h-2 rounded-full ${svc.isActive ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+                          <span>{svc.isActive ? "Active" : "Inactive"}</span>
+                        </button>
+                      </td>
+
+                      {/* Created Date */}
+                      <td className="py-3 px-4 text-xs text-on-surface-variant">
+                        {svc.createdAt ? new Date(svc.createdAt).toLocaleDateString() : "System Record"}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openViewModal(svc)}
+                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg cursor-pointer"
+                            title="View Details"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">visibility</span>
+                          </button>
+
+                          <button
+                            onClick={() => openEditModal(svc)}
+                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg cursor-pointer"
+                            title="Edit Service"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+
+                          <button
+                            onClick={() => openDeleteModal(svc)}
+                            className="p-1.5 text-error hover:bg-error/10 rounded-lg cursor-pointer"
+                            title="Delete Service"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ==================== ADD NEW SERVICE MODAL ==================== */}
-      <AnimatePresence>
-        {isAddModalOpen && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsAddModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
+      {/* CREATE / EDIT SERVICE MODAL */}
+      {isFormModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-lg w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
+              className="bg-surface rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 max-h-[90vh] overflow-y-auto"
             >
-              {!isLoading && (
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
+                <h2 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">
+                    {selectedService ? "edit_note" : "add_box"}
+                  </span>
+                  <span>{selectedService ? "Edit Service" : "Add New Service"}</span>
+                </h2>
                 <button
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
+                  onClick={() => setIsFormModalOpen(false)}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container rounded-lg cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
+                  <span className="material-symbols-outlined">close</span>
                 </button>
-              )}
+              </div>
 
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-on-surface mb-4 flex items-center gap-2 select-none border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-primary text-[28px]">health_and_safety</span>
-                Add Care Service
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-primary text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Creating Service Listing...</p>
-                </div>
-              ) : (
-                <form onSubmit={handleAddSubmit} className="space-y-4 text-left">
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="title">Treatment Title</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="title"
-                      required
-                      placeholder="Root Canal Treatment"
-                      type="text"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="category">Category</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                      >
-                        <option value="General Dentistry">General Dentistry</option>
-                        <option value="Cosmetic">Cosmetic</option>
-                        <option value="Orthodontics">Orthodontics</option>
-                        <option value="Surgery">Surgery</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="price">Price Tag / Base Fee</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="price"
-                        required
-                        placeholder="From $450"
-                        type="text"
-                        value={formData.price}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="tagline">Short Tagline</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="tagline"
-                      placeholder="Relieve pain and restore tooth structural health"
-                      type="text"
-                      value={formData.tagline}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="image">Service Cover Image URL</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="image"
-                      placeholder="https://images.unsplash.com/..."
-                      type="url"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="summary">Service Summary</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="summary"
-                      required
-                      placeholder="Give a brief summary shown in the treatment catalog..."
-                      rows="2"
-                      value={formData.summary}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="benefits">Treatment Benefits (One per line)</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface font-mono text-xs"
-                      id="benefits"
-                      rows="3"
-                      placeholder="Benefit 1&#10;Benefit 2&#10;Benefit 3"
-                      value={formData.benefits}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="recoveryTips">Recovery Tips (One per line)</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface font-mono text-xs"
-                      id="recoveryTips"
-                      rows="2"
-                      placeholder="Tip 1&#10;Tip 2"
-                      value={formData.recoveryTips}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/20 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Publish Service
-                    </button>
-                  </div>
-                </form>
-              )}
+              <ServiceForm
+                initialData={selectedService}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setIsFormModalOpen(false)}
+                isSubmitting={isSubmitting}
+              />
             </motion.div>
-          </motion.div>,
+          </div>,
           document.body
         )}
-      </AnimatePresence>
 
-      {/* ==================== EDIT SERVICE MODAL ==================== */}
-      <AnimatePresence>
-        {isEditModalOpen && selectedService && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsEditModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
+      {/* VIEW SERVICE MODAL */}
+      {isViewModalOpen && selectedService &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-lg w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
+              className="bg-surface rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 max-h-[85vh] overflow-y-auto text-on-surface"
             >
-              {!isLoading && (
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              )}
-
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-on-surface mb-4 flex items-center gap-2 select-none border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-primary text-[28px]">edit</span>
-                Edit Service Offering
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-primary text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Saving Changes...</p>
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {selectedService.tagline || "Clinical Service"}
+                  </span>
+                  <h2 className="text-xl font-extrabold">{selectedService.title}</h2>
                 </div>
-              ) : (
-                <form onSubmit={handleEditSubmit} className="space-y-4 text-left">
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="title">Treatment Title</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="title"
-                      required
-                      type="text"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container rounded-lg cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="category">Category</label>
-                      <select
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-semibold text-on-surface cursor-pointer"
-                        id="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                      >
-                        <option value="General Dentistry">General Dentistry</option>
-                        <option value="Cosmetic">Cosmetic</option>
-                        <option value="Orthodontics">Orthodontics</option>
-                        <option value="Surgery">Surgery</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="price">Base Fee</label>
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                        id="price"
-                        required
-                        type="text"
-                        value={formData.price}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="tagline">Tagline</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="tagline"
-                      type="text"
-                      value={formData.tagline}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="image">Image URL</label>
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="image"
-                      type="url"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="summary">Service Summary</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface"
-                      id="summary"
-                      required
-                      rows="2"
-                      value={formData.summary}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="benefits">Benefits (One per line)</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface font-mono text-xs"
-                      id="benefits"
-                      rows="3"
-                      value={formData.benefits}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider text-[11px]" htmlFor="recoveryTips">Recovery Tips (One per line)</label>
-                    <textarea
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-body-md font-medium text-on-surface font-mono text-xs"
-                      id="recoveryTips"
-                      rows="2"
-                      value={formData.recoveryTips}
-                      onChange={handleInputChange}
-                    ></textarea>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/20 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-5 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Discard
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Save Changes
-                    </button>
-                  </div>
-                </form>
-              )}
-            </motion.div>
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
-
-      {/* ==================== VIEW SERVICE DETAILS MODAL ==================== */}
-      <AnimatePresence>
-        {isViewModalOpen && selectedService && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsViewModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-2xl w-full border border-outline-variant/30 p-6 relative max-h-[90vh] overflow-y-auto"
-            >
-              <button
-                onClick={() => setIsViewModalOpen(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer text-on-surface-variant"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-
-              <div className="relative h-60 rounded-xl overflow-hidden bg-surface-container select-none mb-5 shadow-xs">
+              <div className="h-48 rounded-xl overflow-hidden bg-surface-container">
                 <img
-                  className="w-full h-full object-cover"
-                  src={selectedService.image || "https://images.unsplash.com/photo-1579684389782-64d84b5e905a?auto=format&fit=crop&q=80&w=600&h=300"}
+                  src={getFullImageUrl(selectedService.image)}
                   alt={selectedService.title}
+                  className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
-                  <div>
-                    <span className="bg-secondary-container/90 text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase">{selectedService.category}</span>
-                    <h2 className="text-headline-md font-headline-md text-white font-extrabold mt-2 leading-none">{selectedService.title}</h2>
-                  </div>
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Service Fee Structure</h4>
-                    <p className="text-headline-sm font-extrabold text-primary">{selectedService.price}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1">Tagline &amp; Overview</h4>
-                    <p className="text-body-md font-bold text-on-surface italic">"{selectedService.tagline || 'Elevating oral healthcare standards.'}"</p>
-                    <p className="text-body-md text-on-surface-variant mt-2 leading-relaxed">{selectedService.summary}</p>
-                  </div>
-
-                  {selectedService.benefits && selectedService.benefits.length > 0 && (
-                    <div>
-                      <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1.5">Key Patient Benefits</h4>
-                      <ul className="space-y-1.5">
-                        {selectedService.benefits.map((b, idx) => (
-                          <li key={idx} className="text-body-md text-on-surface-variant font-medium flex items-start gap-1.5 leading-tight">
-                            <span className="material-symbols-outlined text-secondary text-[18px] mt-0.5">check</span>
-                            {b}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              <div className="space-y-3 text-xs">
+                <div>
+                  <h4 className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider">Summary</h4>
+                  <p className="text-body-md text-on-surface mt-0.5">{selectedService.summary}</p>
                 </div>
 
-                <div className="space-y-4 border-l border-outline-variant/20 pl-0 md:pl-6">
-                  {selectedService.recoveryTips && selectedService.recoveryTips.length > 0 && (
-                    <div>
-                      <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1.5">Care &amp; Recovery Tips</h4>
-                      <ul className="space-y-1.5">
-                        {selectedService.recoveryTips.map((tip, idx) => (
-                          <li key={idx} className="text-body-md text-on-surface-variant font-medium flex items-start gap-1.5 leading-tight">
-                            <span className="material-symbols-outlined text-primary text-[18px] mt-0.5">spa</span>
-                            {tip}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {selectedService.faqs && selectedService.faqs.length > 0 && (
-                    <div>
-                      <h4 className="text-label-sm font-bold text-primary uppercase tracking-wider mb-1.5">Frequently Asked Questions</h4>
-                      <div className="space-y-3">
-                        {selectedService.faqs.map((faq, idx) => (
-                          <div key={idx} className="bg-surface-container-lowest border border-outline-variant/30 p-3 rounded-xl shadow-xs">
-                            <p className="text-xs font-extrabold text-on-surface">Q: {faq.q}</p>
-                            <p className="text-xs text-on-surface-variant/80 mt-1">A: {faq.a}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div>
+                  <h4 className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider">Description</h4>
+                  <p className="text-body-md text-on-surface mt-0.5 whitespace-pre-line">{selectedService.description}</p>
                 </div>
+
+                {selectedService.bulletPoints && selectedService.bulletPoints.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-on-surface-variant uppercase text-[10px] tracking-wider mb-1">Key Highlights</h4>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {selectedService.bulletPoints.map((bp, i) => (
+                        <li key={i}>{bp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-outline-variant/20 select-none">
+              <div className="pt-3 border-t border-outline-variant/20 flex justify-end gap-2">
                 <button
-                  type="button"
-                  onClick={() => openDeleteModal(selectedService)}
-                  className="bg-error/5 hover:bg-error/10 text-error font-semibold px-4 py-2.5 rounded-xl transition-all text-label-sm cursor-pointer mr-auto"
-                >
-                  Delete Service
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setIsViewModalOpen(false);
                     openEditModal(selectedService);
                   }}
-                  className="bg-primary text-on-primary font-bold px-6 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
+                  className="bg-primary text-on-primary px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
                 >
-                  Edit Details
+                  Edit This Service
                 </button>
               </div>
             </motion.div>
-          </motion.div>,
+          </div>,
           document.body
         )}
-      </AnimatePresence>
 
-      {/* ==================== DELETE CONFIRMATION MODAL ==================== */}
-      <AnimatePresence>
-        {isDeleteModalOpen && selectedService && createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !isLoading && setIsDeleteModalOpen(false)}
-            className="modal-backdrop fixed inset-0 z-[9999] bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
+      {/* DELETE CONFIRMATION MODAL */}
+      {isDeleteModalOpen && selectedService &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card card-shadow rounded-2xl max-w-sm w-full border border-outline-variant/30 p-6 relative select-none"
+              className="bg-surface rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 text-on-surface"
             >
-              <h2 className="text-headline-sm font-headline-sm font-extrabold text-error mb-2 flex items-center gap-2 border-b border-outline-variant/20 pb-3">
-                <span className="material-symbols-outlined text-[28px]">warning</span>
-                Delete Service
-              </h2>
-
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-6">
-                  <span className="material-symbols-outlined animate-spin text-error text-5xl">progress_activity</span>
-                  <p className="text-body-md text-on-surface-variant font-bold mt-4">Processing Deletion...</p>
+              <div className="flex items-center gap-3 text-error">
+                <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined">warning</span>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-body-md text-on-surface-variant leading-relaxed">
-                    Are you sure you want to remove <strong className="text-on-surface">{selectedService.title}</strong> from DentaElite's active care offerings? This will also remove it from the patient scheduling menus.
-                  </p>
-
-                  <div className="flex justify-end gap-3 pt-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsDeleteModalOpen(false)}
-                      className="border border-outline-variant/50 text-on-surface font-semibold px-4 py-2.5 rounded-xl hover:bg-surface-container-high transition-colors text-label-sm cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeleteConfirm}
-                      className="bg-error text-white font-bold px-5 py-2.5 rounded-xl hover:opacity-95 transition-all text-label-sm shadow-md cursor-pointer"
-                    >
-                      Confirm Delete
-                    </button>
-                  </div>
+                <div>
+                  <h3 className="text-base font-bold">Delete Service</h3>
+                  <p className="text-xs text-on-surface-variant">This action cannot be undone.</p>
                 </div>
-              )}
+              </div>
+
+              <p className="text-sm">
+                Are you sure you want to delete <span className="font-bold text-on-surface">"{selectedService.title}"</span> from the clinic catalog?
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-xl border border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:bg-surface-container cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-error text-white rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Deleting..." : "Delete Service"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>,
+          </div>,
           document.body
         )}
-      </AnimatePresence>
 
-      {/* ==================== TOAST NOTIFICATION ==================== */}
+      {/* CUSTOM TOAST NOTIFICATION (NO POPUP ALERTS OR RAW 404 STRINGS) */}
       <AnimatePresence>
-        {toastMessage && (
+        {toast.message && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-[99999] bg-inverse-surface text-inverse-on-surface px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 border border-outline-variant/20 select-none max-w-sm"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-semibold text-white ${
+              toast.type === "error" ? "bg-red-600" : "bg-emerald-600"
+            }`}
           >
-            <span className="material-symbols-outlined text-secondary-fixed">check_circle</span>
-            <span className="text-label-md font-bold leading-tight">{toastMessage}</span>
+            <span className="material-symbols-outlined text-xl">
+              {toast.type === "error" ? "error_outline" : "check_circle"}
+            </span>
+            <span>{toast.message}</span>
           </motion.div>
         )}
       </AnimatePresence>

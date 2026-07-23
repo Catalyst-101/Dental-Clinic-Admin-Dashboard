@@ -371,7 +371,7 @@ export default function WebsiteContent() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Patient Picture URL</label>
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Patient Picture URL (optional)</label>
                         <input
                           type="url"
                           placeholder="https://images.unsplash.com/photo-..."

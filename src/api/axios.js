@@ -18,17 +18,48 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+export const parseErrorMessage = (error, defaultMsg = "An unexpected error occurred. Please try again.") => {
+  if (!error) return defaultMsg;
+  if (typeof error === "string") return error;
+
+  const status = error.status || (error.response && error.response.status);
+  const dataMsg = error.response && error.response.data && error.response.data.message;
+
+  if (dataMsg && !dataMsg.includes("status code")) {
+    return dataMsg;
+  }
+
+  if (status === 404) {
+    return "Requested resource was not found. Please verify the service exists.";
+  }
+  if (status === 401) {
+    return "Your session has expired. Please log in again.";
+  }
+  if (status === 403) {
+    return "Access denied. Admin authorization is required.";
+  }
+  if (status === 400) {
+    return dataMsg || "Invalid request parameters or missing required fields.";
+  }
+  if (status >= 500) {
+    return "Backend server error. Please try again in a few moments.";
+  }
+
+  if (error.message && !error.message.includes("status code") && !error.message.includes("Request failed")) {
+    return error.message;
+  }
+
+  return defaultMsg;
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.data) {
-      const message = error.response.data.message || error.message;
-      const customError = new Error(message);
-      customError.response = error.response.data;
-      customError.status = error.response.status;
-      return Promise.reject(customError);
-    }
-    return Promise.reject(error);
+    const friendlyMessage = parseErrorMessage(error);
+    const customError = new Error(friendlyMessage);
+    customError.status = error.response ? error.response.status : 500;
+    customError.response = error.response ? error.response.data : null;
+    return Promise.reject(customError);
   }
 );
 
