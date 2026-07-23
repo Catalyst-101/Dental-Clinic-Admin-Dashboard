@@ -262,7 +262,7 @@ const LoginPage = () => {
         >
           <div className="flex items-center gap-4 mb-4">
             <span className="material-symbols-outlined text-white text-5xl leading-none">dentistry</span>
-            <h1 className="text-3xl lg:text-4xl font-semibold text-white leading-none">DentaElite Admin</h1>
+            <h1 className="text-3xl lg:text-4xl font-semibold text-white leading-none">SAMI DENTAL CLINIC Admin</h1>
           </div>
           <p className="text-white opacity-90 text-base lg:text-lg leading-relaxed text-left">
             Premium dental care administrative gateway. Manage practitioners, appointments, and patient wellness through our unified clinical interface.

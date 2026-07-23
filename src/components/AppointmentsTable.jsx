@@ -599,6 +599,82 @@ export const AppointmentsTable = forwardRef(({
           document.body
         )}
 
+      {/* VIEW APPOINTMENT DETAILS MODAL */}
+      {isViewModalOpen && selectedAppointment &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-outline-variant/30 text-on-surface"
+            >
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-primary uppercase">
+                    {selectedAppointment.appointmentId || selectedAppointment.id}
+                  </span>
+                  <h3 className="text-base font-extrabold">{selectedAppointment.patientName}</h3>
+                </div>
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container rounded cursor-pointer"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2 bg-surface-container/40 p-3 rounded-xl">
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Phone</span>
+                    <span className="font-mono font-medium text-on-surface">{selectedAppointment.patientPhone}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Email</span>
+                    <span className="font-medium text-on-surface">{selectedAppointment.patientEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Doctor</span>
+                    <span className="font-semibold text-on-surface">{selectedAppointment.doctorName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Service</span>
+                    <span className="font-semibold text-on-surface">{selectedAppointment.serviceName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Date & Time</span>
+                    <span className="font-mono font-medium text-on-surface">{selectedAppointment.date} at {selectedAppointment.time}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Status</span>
+                    <span className="font-bold text-primary">{selectedAppointment.status}</span>
+                  </div>
+                </div>
+
+                {selectedAppointment.notes && (
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Notes</span>
+                    <p className="text-xs text-on-surface whitespace-pre-line bg-surface-container/30 p-2.5 rounded-lg border border-outline-variant/10">
+                      {selectedAppointment.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-outline-variant/20 flex justify-end">
+                <button
+                  onClick={() => setIsViewModalOpen(false)}
+                  className="bg-primary text-on-primary px-4 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
+
       {/* DELETE CONFIRMATION MODAL */}
       {isDeleteModalOpen && selectedAppointment &&
         createPortal(

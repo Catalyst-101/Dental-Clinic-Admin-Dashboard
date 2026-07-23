@@ -48,7 +48,7 @@ export default function Appointments() {
               Appointment Management
             </h1>
             <p className="text-body-md text-on-surface-variant opacity-80">
-              Review and manage clinical reservations for DentaElite.
+              Review and manage clinical reservations for Sami Dental Clinic.
             </p>
           </div>
           

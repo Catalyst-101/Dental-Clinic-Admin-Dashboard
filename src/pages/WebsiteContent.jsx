@@ -77,7 +77,7 @@ export default function WebsiteContent() {
         method: "PUT",
         body: { stats }
       });
-      setToastMessage("CMS content published successfully! Changes are live on DentaElite public website.");
+      setToastMessage("CMS content published successfully! Changes are live on Sami Dental Clinic public website.");
     } catch (err) {
       alert(err.response?.message || err.message || "Failed to publish CMS content.");
     } finally {

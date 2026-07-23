@@ -99,7 +99,7 @@ export const Sidebar = ({ onLogout }) => {
                     </span>
 
                     <h1 className="text-headline-sm font-headline-sm font-black text-primary tracking-tight">
-                        DentaElite
+                        SAMI DENTAL CLINIC
                     </h1>
                 </div>
 

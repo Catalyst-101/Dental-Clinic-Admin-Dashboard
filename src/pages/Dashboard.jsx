@@ -107,17 +107,6 @@ export const Dashboard = () => {
               <AppointmentsTable isDashboard={true} />
             </div>
           </div>
-
-          <footer className="pt-gutter border-t border-outline-variant/30 select-none">
-            <div className="flex justify-between items-center flex-wrap gap-4 text-label-sm font-label-sm text-on-surface-variant opacity-80">
-              <p>© 2026 DentaElite Premium Care. All rights reserved.</p>
-              <div className="flex gap-gutter">
-                <a className="hover:text-primary transition-all font-semibold" href="#">Support</a>
-                <a className="hover:text-primary transition-all font-semibold" href="#">Privacy Policy</a>
-                <a className="hover:text-primary transition-all font-semibold" href="#">Terms of Service</a>
-              </div>
-            </div>
-          </footer>
         </div>
       </div>
     </div>
