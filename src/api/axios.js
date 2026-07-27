@@ -1,6 +1,9 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const defaultBackendUrl = "https://dental-clinic-backend-production-ba90.up.railway.app";
+export const API_BASE_URL = (import.meta.env.VITE_API_URL && String(import.meta.env.VITE_API_URL).trim() !== "")
+  ? import.meta.env.VITE_API_URL
+  : defaultBackendUrl;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
