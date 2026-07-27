@@ -30,14 +30,6 @@ export default function Settings() {
     }
   }, [searchParams]);
 
-  // Auto-clear toast
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(""), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
   // Profile States
   const [profileSettings, setProfileSettings] = useState({
     name: "",
@@ -45,6 +37,41 @@ export default function Settings() {
     email: "",
     profilePicture: ""
   });
+
+  // Clinic Settings States
+  const [contactSettings, setContactSettings] = useState({
+    address: "",
+    phone: "",
+    whatsApp: "",
+    email: "",
+    googleMapUrl: ""
+  });
+
+  const [socialSettings, setSocialSettings] = useState({
+    whatsApp: "",
+    facebook: "",
+    instagram: ""
+  });
+
+  const [businessHours, setBusinessHours] = useState([
+    { day: "Monday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
+    { day: "Tuesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
+    { day: "Wednesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
+    { day: "Thursday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
+    { day: "Friday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
+    { day: "Saturday", open: "09:00 AM", close: "02:00 PM", isClosed: false },
+    { day: "Sunday", open: "09:00 AM", close: "12:00 PM", isClosed: true }
+  ]);
+
+  const [securitySettings, setSecuritySettings] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [securityError, setSecurityError] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -87,7 +114,6 @@ export default function Settings() {
             email: data.user.email || "",
             profilePicture: data.user.profilePicture || ""
           });
-
         }
       } catch (err) {
         console.error("Failed to fetch administrator details:", err);
@@ -96,45 +122,6 @@ export default function Settings() {
     fetchProfile();
     fetchSettings();
   }, []);
-
-  // Form States (Clinic Information Mockup Settings)
-
-  const [contactSettings, setContactSettings] = useState({
-    address: "742 Medical Mile, Suite 200, Beverly Hills, CA 90210",
-    phone: "+1 (555) 012-3456",
-    whatsApp: "+1 (555) 012-3456",
-    email: "hello@dentaelite.care",
-    googleMapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.6175394982635!2d-73.98774768459392!3d40.748440479328224!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c259a9b3117469%3A0xd134e199a405a163!2sEmpire%20State%20Building!5e0!3m2!1sen!2sus!4v1655000000000!5m2!1sen!2sus"
-  });
-
-  const [socialSettings, setSocialSettings] = useState({
-    whatsApp: "https://wa.me/15550123456",
-    facebook: "https://facebook.com/dentaelite",
-    instagram: "https://instagram.com/dentaelite"
-  });
-
-  const [businessHours, setBusinessHours] = useState([
-    { day: "Monday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-    { day: "Tuesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-    { day: "Wednesday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-    { day: "Thursday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-    { day: "Friday", open: "08:00 AM", close: "05:00 PM", isClosed: false },
-    { day: "Saturday", open: "09:00 AM", close: "02:00 PM", isClosed: false },
-    { day: "Sunday", open: "09:00 AM", close: "12:00 PM", isClosed: true }
-  ]);
-
-  const [securitySettings, setSecuritySettings] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  });
-  const [securityError, setSecurityError] = useState("");
-
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Forced password change state
-  const [mustChangePassword, setMustChangePassword] = useState(false);
 
 
 
@@ -174,9 +161,9 @@ export default function Settings() {
       });
       setProfileSettings((prev) => ({ ...prev, profilePicture: data.url }));
       markDirty();
-      setToastMessage("Avatar image uploaded successfully!");
+      showToast("Avatar image uploaded successfully!", "success");
     } catch (err) {
-      alert(err.message || "Failed to upload avatar.");
+      showToast(err.message || "Failed to upload avatar.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -184,7 +171,7 @@ export default function Settings() {
 
   const handleAvatarRemove = () => {
     handleProfileChange("profilePicture", "");
-    setToastMessage("Avatar removed.");
+    showToast("Avatar removed.", "info");
   };
 
   const handleSave = async () => {
@@ -193,12 +180,12 @@ export default function Settings() {
 
     if (activeTab === "profile") {
       if (!profileSettings.name.trim()) {
-        alert("Name is required.");
+        showToast("Name is required.", "warning");
         setIsLoading(false);
         return;
       }
       if (!profileSettings.username.trim()) {
-        alert("Username is required.");
+        showToast("Username is required.", "warning");
         setIsLoading(false);
         return;
       }
@@ -218,11 +205,11 @@ export default function Settings() {
         storage.setItem("user", JSON.stringify(data.user));
 
         window.dispatchEvent(new Event("storage"));
-        setToastMessage("Admin profile updated successfully!");
+        showToast("Admin profile updated successfully!", "success");
         setIsDirty(false);
       } catch (error) {
         const msg = error.response?.message || error.message || "Failed to update profile.";
-        alert(msg);
+        showToast(msg, "error");
       } finally {
         setIsLoading(false);
       }
@@ -274,7 +261,7 @@ export default function Settings() {
             confirmPassword: ""
           }));
 
-          setToastMessage("Password updated successfully!");
+          showToast("Password updated successfully!", "success");
           setMustChangePassword(false);
           setIsDirty(false);
 
@@ -303,10 +290,11 @@ export default function Settings() {
           method: "PUT",
           body: payload
         });
-        setToastMessage("Settings updated successfully!");
+        showToast("Settings updated successfully!", "success");
         setIsDirty(false);
       } catch (error) {
-        alert(error.response?.message || error.message || "Failed to update settings.");
+        const msg = error.response?.message || error.message || "Failed to update settings.";
+        showToast(msg, "error");
       } finally {
         setIsLoading(false);
       }
@@ -332,7 +320,7 @@ export default function Settings() {
       }
       await fetchSettings();
       setIsDirty(false);
-      setToastMessage("Changes discarded. All settings re-synced.");
+      showToast("Changes discarded. All settings re-synced.", "info");
     } catch (err) {
       console.error(err);
     } finally {
@@ -404,7 +392,7 @@ export default function Settings() {
                 onClick={() => {
                   if (mustChangePassword && tab.id !== "security") {
                     setSecurityError("You must update your temporary password before configuring other settings.");
-                    setToastMessage("Please update your password first!");
+                    showToast("Please update your password first!", "warning");
                   } else {
                     setActiveTab(tab.id);
                   }
@@ -841,21 +829,6 @@ export default function Settings() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* ==================== TOAST NOTIFICATION ==================== */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className={`fixed bottom-6 right-6 z-[99999] bg-inverse-surface text-inverse-on-surface px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 border border-outline-variant/20 select-none max-w-sm`}
-          >
-            <span className="material-symbols-outlined text-secondary-fixed">check_circle</span>
-            <span className="text-label-md font-bold leading-tight">{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

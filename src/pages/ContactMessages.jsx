@@ -122,12 +122,14 @@ export default function ContactMessages() {
               </thead>
               <tbody className="divide-y divide-outline-variant/15 text-body-md">
                 {isLoading && messages.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="text-center py-8 text-on-surface-variant">
-                      <span className="material-symbols-outlined animate-spin text-2xl">progress_activity</span>
-                      <p className="mt-2 text-xs font-bold uppercase tracking-wider">Loading messages...</p>
-                    </td>
-                  </tr>
+                  [...Array(5)].map((_, r) => (
+                    <tr key={r} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-4 bg-surface-container-high rounded w-32"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-surface-container-high rounded w-48"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-surface-container-high rounded w-24"></div></td>
+                      <td className="px-6 py-4 text-right"><div className="h-4 bg-surface-container-high rounded w-16 ml-auto"></div></td>
+                    </tr>
+                  ))
                 ) : filteredMessages.length === 0 ? (
                   <tr>
                     <td colSpan="4" className="text-center py-8 text-on-surface-variant">

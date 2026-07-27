@@ -11,6 +11,7 @@ import {
   toggleServiceStatus
 } from "../api/services";
 import { getFullImageUrl, parseErrorMessage } from "../api/axios";
+import { SkeletonCard } from "../components/Skeleton";
 
 export default function Services() {
   const [services, setServices] = useState([]);
@@ -231,9 +232,10 @@ export default function Services() {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-semibold text-on-surface-variant">Loading clinic services catalog...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         ) : filteredServices.length === 0 ? (
           /* Empty State */

@@ -4,6 +4,7 @@ import { StatsCard } from "../components/StatsCard";
 import { AppointmentsTable } from "../components/AppointmentsTable";
 import { getAdminStats } from "../api/notifications";
 import { parseErrorMessage } from "../api/axios";
+import { SkeletonCard } from "../components/Skeleton";
 
 export const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -65,42 +66,50 @@ export const Dashboard = () => {
 
         <div className="content-area mt-gutter space-y-gutter">
           {/* Real Database Overview Cards */}
-          <div className="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md">
-            <StatsCard
-              badgeType="revenue"
-              label="Total Patients"
-              value={isLoadingStats ? "..." : String(stats.totalPatients)}
-              changeType={null}
-            />
+          {isLoadingStats ? (
+            <div className="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md">
+              {[...Array(5)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md">
+              <StatsCard
+                badgeType="revenue"
+                label="Total Patients"
+                value={String(stats.totalPatients)}
+                changeType={null}
+              />
 
-            <StatsCard
-              badgeType="completed"
-              label="Total Doctors"
-              value={isLoadingStats ? "..." : String(stats.totalDoctors)}
-              changeType={null}
-            />
+              <StatsCard
+                badgeType="completed"
+                label="Total Doctors"
+                value={String(stats.totalDoctors)}
+                changeType={null}
+              />
 
-            <StatsCard
-              badgeType="wait"
-              label="Total Appointments"
-              value={isLoadingStats ? "..." : String(stats.totalAppointments)}
-              changeType={null}
-            />
+              <StatsCard
+                badgeType="wait"
+                label="Total Appointments"
+                value={String(stats.totalAppointments)}
+                changeType={null}
+              />
 
-            <StatsCard
-              badgeType="occupancy"
-              label="Pending Appointments"
-              value={isLoadingStats ? "..." : String(stats.pendingAppointments)}
-              changeType={null}
-            />
+              <StatsCard
+                badgeType="occupancy"
+                label="Pending Appointments"
+                value={String(stats.pendingAppointments)}
+                changeType={null}
+              />
 
-            <StatsCard
-              badgeType="tickets"
-              label="New Messages"
-              value={isLoadingStats ? "..." : String(stats.newContactMessages)}
-              changeType={null}
-            />
-          </div>
+              <StatsCard
+                badgeType="tickets"
+                label="New Messages"
+                value={String(stats.newContactMessages)}
+                changeType={null}
+              />
+            </div>
+          )}
 
           <div className="gap-md items-start">
             <div className="w-full">

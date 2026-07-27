@@ -661,22 +661,6 @@ export const AppointmentsTable = forwardRef(({
                     </p>
                   </div>
                 )}
-
-                {selectedAppointment.documentUrl && (
-                  <div>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Medical Record / PDF Document</span>
-                    <a
-                      href={getFullImageUrl(selectedAppointment.documentUrl)}
-                      target="_blank"
-                      rel="noreferrer"
-                      download
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary font-bold hover:bg-primary/20 transition-colors text-xs cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                      Download Patient PDF Document
-                    </a>
-                  </div>
-                )}
               </div>
 
               <div className="pt-2 border-t border-outline-variant/20 flex justify-end">
