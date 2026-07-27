@@ -8,6 +8,7 @@ import {
   deletePatient
 } from "../api/patients";
 import { parseErrorMessage } from "../api/axios";
+import { SkeletonTable } from "./Skeleton";
 
 export const PatientTable = forwardRef(({
   searchTerm = "",
@@ -261,9 +262,8 @@ export const PatientTable = forwardRef(({
 
       {/* Loading state */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 space-y-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-semibold text-on-surface-variant">Loading patient records...</p>
+        <div className="p-4">
+          <SkeletonTable rows={5} cols={6} />
         </div>
       ) : paginatedPatients.length === 0 ? (
         /* Empty State */

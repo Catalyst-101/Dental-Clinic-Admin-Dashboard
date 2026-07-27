@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TopBar from "../components/TopBar";
 import { PasswordStrengthInput } from "../components/PasswordStrengthInput";
 import { apiFetch, getFullImageUrl } from "../utils/apiClient";
+import { useToast } from "../context/ToastContext";
 
 const getMapUrl = (urlOrIframe) => {
   if (!urlOrIframe) return "";
@@ -14,10 +16,19 @@ const getMapUrl = (urlOrIframe) => {
 };
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("profile");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isLoading, setIsLoading] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const { showToast } = useToast();
   const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   // Auto-clear toast
   useEffect(() => {

@@ -9,7 +9,9 @@ import {
 } from "../api/appointments";
 import { getDoctors } from "../api/doctors";
 import { getServices } from "../api/services";
-import { parseErrorMessage } from "../api/axios";
+import { parseErrorMessage, getFullImageUrl } from "../api/axios";
+import { useToast } from "../context/ToastContext";
+import { SkeletonTable } from "./Skeleton";
 
 export const AppointmentsTable = forwardRef(({
   searchTerm = "",
@@ -265,9 +267,8 @@ export const AppointmentsTable = forwardRef(({
 
       {/* Loading state */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-16 space-y-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-semibold text-on-surface-variant">Loading clinical reservations...</p>
+        <div className="p-4">
+          <SkeletonTable rows={itemsPerPage} cols={7} />
         </div>
       ) : paginatedAppointments.length === 0 ? (
         /* Empty State */
@@ -658,6 +659,22 @@ export const AppointmentsTable = forwardRef(({
                     <p className="text-xs text-on-surface whitespace-pre-line bg-surface-container/30 p-2.5 rounded-lg border border-outline-variant/10">
                       {selectedAppointment.notes}
                     </p>
+                  </div>
+                )}
+
+                {selectedAppointment.documentUrl && (
+                  <div>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block mb-1">Medical Record / PDF Document</span>
+                    <a
+                      href={getFullImageUrl(selectedAppointment.documentUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary font-bold hover:bg-primary/20 transition-colors text-xs cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                      Download Patient PDF Document
+                    </a>
                   </div>
                 )}
               </div>

@@ -202,7 +202,7 @@ const TopBar = ({
 
         {/* Profile Card Separated by Vertical Divider */}
         <div 
-          onClick={() => navigate("/settings")} 
+          onClick={() => navigate("/settings?tab=profile")} 
           className="flex items-center gap-3 pl-4 border-l border-surface-container-highest cursor-pointer hover:opacity-90 transition-opacity"
         >
           <div className="text-right hidden sm:block">
