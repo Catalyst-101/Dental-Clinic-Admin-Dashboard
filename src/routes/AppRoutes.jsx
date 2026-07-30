@@ -10,7 +10,7 @@ import Services from "../pages/Services";
 import WebsiteContent from "../pages/WebsiteContent";
 import Settings from "../pages/Settings";
 import Admins from "../pages/Admins";
-import ContactMessages from "../pages/ContactMessages";
+import Categories from "../pages/Categories";
 
 // Helper function to get authentication token
 const getToken = () => {
@@ -93,6 +93,11 @@ const Layout = () => {
           <Route
             path="/receptionists"
             element={<ProtectedRoute><Doctors defaultCategory="Receptionist" /></ProtectedRoute>}
+          />
+
+          <Route
+            path="/categories"
+            element={<ProtectedRoute><Categories /></ProtectedRoute>}
           />
 
           <Route

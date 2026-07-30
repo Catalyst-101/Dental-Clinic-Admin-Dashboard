@@ -28,6 +28,12 @@ export const Sidebar = ({ onLogout }) => {
             matchIds: ["dentists", "hygienists", "surgeons", "receptionists"]
         },
         {
+            id: "categories",
+            label: "Staff Categories",
+            icon: "category",
+            path: "/categories"
+        },
+        {
             id: "appointments",
             label: "Appointments",
             icon: "event_available",

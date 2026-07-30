@@ -10,13 +10,27 @@ import {
   deleteDoctor,
   toggleDoctorStatus
 } from "../api/doctors";
-import { getFullImageUrl, parseErrorMessage } from "../api/axios";
-import { SkeletonCard } from "../components/Skeleton";
+import { getCategories } from "../api/categories";
 
 export default function Doctors({ defaultCategory = "All" }) {
   const [doctors, setDoctors] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(defaultCategory);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await getCategories();
+        if (res && res.success) {
+          setCategoriesList(res.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      }
+    };
+    fetchCats();
+  }, []);
 
   // Modals & Overlays
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -153,7 +167,7 @@ export default function Doctors({ defaultCategory = "All" }) {
     }
   };
 
-  const categories = ["All", "Dentist", "Hygienist", "Surgeon", "Receptionist"];
+  const categories = ["All", ...categoriesList.map((c) => c.name)];
 
   const filteredDoctors = doctors.filter((doc) => {
     const matchesCategory =

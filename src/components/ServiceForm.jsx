@@ -57,6 +57,8 @@ const IconSelector = ({ value, onChange, label, className = "" }) => {
   );
 };
 
+import { getDoctors } from "../api/doctors";
+
 const defaultServiceState = {
   title: "",
   tagline: "",
@@ -65,6 +67,9 @@ const defaultServiceState = {
   image: "",
   overview: "",
   description: "",
+  doctors: [],
+  duration: 30,
+  price: 0,
   bulletPoints: [""],
   benefits: [
     { title: "", description: "", icon: "health_and_safety" }
@@ -84,13 +89,32 @@ const defaultServiceState = {
 
 export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitting }) {
   const [formData, setFormData] = useState(defaultServiceState);
+  const [doctorsList, setDoctorsList] = useState([]);
   const [activeTab, setActiveTab] = useState("basic");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const res = await getDoctors({ all: "true" });
+        if (res && res.success) {
+          setDoctorsList(res.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch doctors list for service form:", err);
+      }
+    };
+    fetchDocs();
+  }, []);
+
+  useEffect(() => {
     if (initialData) {
+      const existingDocIds = Array.isArray(initialData.doctors)
+        ? initialData.doctors.map((d) => (typeof d === "object" ? d._id || d.id : d))
+        : [];
+
       setFormData({
         title: initialData.title || "",
         tagline: initialData.tagline || "",
@@ -99,6 +123,9 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
         image: initialData.image || "",
         overview: initialData.overview || "",
         description: initialData.description || "",
+        doctors: existingDocIds,
+        duration: initialData.duration || 30,
+        price: initialData.price !== undefined ? initialData.price : 0,
         bulletPoints: initialData.bulletPoints && initialData.bulletPoints.length > 0
           ? initialData.bulletPoints
           : [""],
@@ -411,28 +438,90 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Predefined Icon Dropdown Selector */}
-            <IconSelector
-              label="Service Main Icon"
-              value={formData.icon}
-              onChange={(newIcon) => setFormData((prev) => ({ ...prev, icon: newIcon }))}
-            />
-
-            <div className="flex items-center pt-5">
-              <label className="relative inline-flex items-center cursor-pointer gap-3">
-                <input
-                  type="checkbox"
-                  name="isActive"
-                  checked={formData.isActive}
-                  onChange={handleChange}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                <span className="text-sm font-semibold text-on-surface">
-                  Active Service
-                </span>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1 text-on-surface">
+                Service Duration (Minutes) <span className="text-error">*</span>
               </label>
+              <input
+                type="number"
+                name="duration"
+                min="5"
+                step="5"
+                value={formData.duration}
+                onChange={handleChange}
+                placeholder="e.g. 30"
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+              />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1 text-on-surface">
+                Service Price ($)
+              </label>
+              <input
+                type="number"
+                name="price"
+                min="0"
+                step="1"
+                value={formData.price}
+                onChange={handleChange}
+                placeholder="e.g. 150"
+                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Multi-Select Doctors Selection */}
+          <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-on-surface">
+              Assign Doctors to Service (Multi-Select)
+            </label>
+            <p className="text-xs text-on-surface-variant">
+              Select all practitioners qualified to provide this service.
+            </p>
+            {doctorsList.length === 0 ? (
+              <p className="text-xs text-on-surface-variant italic">No doctors onboarded yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                {doctorsList.map((doc) => {
+                  const docId = doc._id || doc.id;
+                  const isChecked = formData.doctors.includes(docId);
+
+                  const toggleDoctor = () => {
+                    setFormData((prev) => {
+                      const updated = isChecked
+                        ? prev.doctors.filter((id) => id !== docId)
+                        : [...prev.doctors, docId];
+                      return { ...prev, doctors: updated };
+                    });
+                  };
+
+                  return (
+                    <div
+                      key={docId}
+                      onClick={toggleDoctor}
+                      className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                        isChecked
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-outline-variant/30 bg-surface hover:bg-surface-container text-on-surface"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        className="w-4 h-4 rounded text-primary focus:ring-primary pointer-events-none"
+                      />
+                      <div className="text-xs truncate">
+                        <span className="font-bold block">{doc.name}</span>
+                        <span className="text-[11px] opacity-75">{doc.specialization}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>

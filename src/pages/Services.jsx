@@ -263,7 +263,8 @@ export default function Services() {
                   <tr className="border-b border-outline-variant/20 bg-surface-container/50 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant select-none">
                     <th className="py-3.5 px-4">Thumbnail</th>
                     <th className="py-3.5 px-4">Service Name</th>
-                    <th className="py-3.5 px-4">Tagline</th>
+                    <th className="py-3.5 px-4">Duration &amp; Price</th>
+                    <th className="py-3.5 px-4">Assigned Doctors</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Created Date</th>
                     <th className="py-3.5 px-4 text-right">Actions</th>
@@ -300,14 +301,36 @@ export default function Services() {
                         </div>
                       </td>
 
-                      {/* Tagline */}
+                      {/* Duration & Price */}
                       <td className="py-3 px-4 text-xs font-semibold text-on-surface-variant">
-                        {svc.tagline ? (
-                          <span className="px-2.5 py-1 rounded-md bg-surface-container text-on-surface-variant uppercase text-[10px] tracking-wider font-bold">
-                            {svc.tagline}
+                        <div className="space-y-0.5">
+                          <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold inline-block text-[11px]">
+                            {svc.duration || 30} mins
                           </span>
+                          <span className="block text-on-surface font-bold">
+                            ${svc.price || 0}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Assigned Doctors */}
+                      <td className="py-3 px-4 text-xs">
+                        {Array.isArray(svc.doctors) && svc.doctors.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {svc.doctors.map((d) => {
+                              const docName = typeof d === "object" ? d.name : "Doctor";
+                              return (
+                                <span
+                                  key={typeof d === "object" ? d._id || d.slug : d}
+                                  className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface text-[10px] font-semibold"
+                                >
+                                  {docName}
+                                </span>
+                              );
+                            })}
+                          </div>
                         ) : (
-                          <span className="italic text-on-surface-variant/40">—</span>
+                          <span className="italic text-on-surface-variant/40 text-xs">None assigned</span>
                         )}
                       </td>
 
