@@ -11,6 +11,7 @@ import WebsiteContent from "../pages/WebsiteContent";
 import Settings from "../pages/Settings";
 import Admins from "../pages/Admins";
 import Categories from "../pages/Categories";
+import ContactMessages from "../pages/ContactMessages";
 
 // Helper function to get authentication token
 const getToken = () => {

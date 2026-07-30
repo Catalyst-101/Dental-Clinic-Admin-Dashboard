@@ -61,7 +61,7 @@ export default function DoctorForm({ initialData, defaultCategory = "", onSubmit
           setCategoriesList(catRes.data || []);
         }
 
-        const settingsRes = await api.get("/settings");
+        const settingsRes = await api.get("/api/settings");
         if (settingsRes.data && settingsRes.data.data && settingsRes.data.data.businessHours) {
           setClinicHours(settingsRes.data.data.businessHours);
         }

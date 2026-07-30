@@ -87,7 +87,7 @@ export const BookAppointmentCard = ({ onComplete, step, setStep }) => {
             setFetchingSlots(true);
             setErrorMessage("");
             try {
-                const res = await api.get("/appointments/available-slots", {
+                const res = await api.get("/api/appointments/available-slots", {
                     params: {
                         serviceId: formData.serviceId,
                         doctorId: formData.doctorId,

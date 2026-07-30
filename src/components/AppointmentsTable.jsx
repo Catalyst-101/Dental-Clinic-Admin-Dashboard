@@ -43,43 +43,104 @@ export const AppointmentsTable = forwardRef(({
     setToast({ message, type });
   };
 
-  // Form State
+  // Form State (Clean - No Pre-filled Text)
   const [formData, setFormData] = useState({
     patientName: "",
     patientEmail: "",
     patientPhone: "",
-    gender: "Female",
+    gender: "",
     dob: "",
-    doctorName: "",
+    serviceId: "",
     serviceName: "",
-    date: new Date().toISOString().split("T")[0],
-    time: "10:00 AM",
+    doctorId: "",
+    doctorName: "",
+    date: "",
+    time: "",
     notes: ""
   });
 
-  // Fetch Doctors & Services for Dynamic Dropdowns
-  const fetchDoctorsAndServices = async () => {
+  const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [fetchingSlots, setFetchingSlots] = useState(false);
+
+  // Fetch Services for Dropdown
+  const fetchServicesList = async () => {
     try {
-      const [docsRes, servsRes] = await Promise.all([
-        getDoctors({ all: "true" }),
-        getServices({ all: "true" })
-      ]);
-      if (docsRes && docsRes.success && docsRes.data) {
-        setDoctorsList(docsRes.data);
-        if (docsRes.data.length > 0 && !formData.doctorName) {
-          setFormData((prev) => ({ ...prev, doctorName: docsRes.data[0].name }));
-        }
-      }
+      const servsRes = await getServices({ all: "true" });
       if (servsRes && servsRes.success && servsRes.data) {
         setServicesList(servsRes.data);
-        if (servsRes.data.length > 0 && !formData.serviceName) {
-          setFormData((prev) => ({ ...prev, serviceName: servsRes.data[0].title }));
-        }
       }
     } catch (err) {
-      console.error("Error fetching doctors/services for dropdowns:", err);
+      console.error("Error fetching services:", err);
     }
   };
+
+  // Filter assigned doctors when serviceId changes
+  useEffect(() => {
+    if (!formData.serviceId) {
+      setFilteredDoctors([]);
+      setFormData((prev) => ({ ...prev, doctorId: "", doctorName: "", time: "" }));
+      setAvailableSlots([]);
+      return;
+    }
+
+    const selectedSvc = servicesList.find((s) => (s._id === formData.serviceId || s.id === formData.serviceId || s.slug === formData.serviceId));
+    if (selectedSvc) {
+      setFormData((prev) => ({ ...prev, serviceName: selectedSvc.title }));
+    }
+
+    const loadDoctorsForService = async () => {
+      try {
+        const docsRes = await getDoctors({ serviceId: formData.serviceId, all: "true" });
+        if (docsRes && docsRes.success && docsRes.data) {
+          setFilteredDoctors(docsRes.data);
+        } else {
+          setFilteredDoctors([]);
+        }
+      } catch (err) {
+        console.error("Failed to load assigned doctors:", err);
+        setFilteredDoctors([]);
+      }
+    };
+
+    loadDoctorsForService();
+    setFormData((prev) => ({ ...prev, doctorId: "", doctorName: "", time: "" }));
+    setAvailableSlots([]);
+  }, [formData.serviceId, servicesList]);
+
+  // Fetch dynamic available slots when Service, Doctor, and Date are set
+  useEffect(() => {
+    if (!formData.serviceId || !formData.doctorId || !formData.date) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    const fetchDynamicSlots = async () => {
+      setFetchingSlots(true);
+      try {
+        const res = await api.get("/api/appointments/available-slots", {
+          params: {
+            serviceId: formData.serviceId,
+            doctorId: formData.doctorId,
+            date: formData.date
+          }
+        });
+
+        if (res.data && res.data.success) {
+          setAvailableSlots(res.data.data || []);
+        } else {
+          setAvailableSlots([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch dynamic slots:", err);
+        setAvailableSlots([]);
+      } finally {
+        setFetchingSlots(false);
+      }
+    };
+
+    fetchDynamicSlots();
+  }, [formData.serviceId, formData.doctorId, formData.date]);
 
   const fetchAppointmentList = async () => {
     setIsLoading(true);
@@ -101,7 +162,7 @@ export const AppointmentsTable = forwardRef(({
   };
 
   useEffect(() => {
-    fetchDoctorsAndServices();
+    fetchServicesList();
     fetchAppointmentList();
   }, [statusFilter, doctorFilter]);
 

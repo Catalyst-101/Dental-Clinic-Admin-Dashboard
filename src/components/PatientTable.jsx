@@ -67,7 +67,7 @@ export const PatientTable = forwardRef(({
     name: "",
     phone: "",
     email: "",
-    gender: "Female",
+    gender: "",
     dob: "",
     address: "",
     status: "Active",
@@ -465,6 +465,7 @@ export const PatientTable = forwardRef(({
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs cursor-pointer font-medium"
                     >
+                      <option value="" disabled>Select gender...</option>
                       <option value="Female">Female</option>
                       <option value="Male">Male</option>
                       <option value="Other">Other</option>
