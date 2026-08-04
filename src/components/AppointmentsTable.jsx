@@ -63,12 +63,24 @@ export const AppointmentsTable = forwardRef(({
   const [availableSlots, setAvailableSlots] = useState([]);
   const [fetchingSlots, setFetchingSlots] = useState(false);
 
+  // Fetch Doctors for Dropdown
+  const fetchDoctorsList = async () => {
+    try {
+      const docsRes = await getDoctors({ all: "true" });
+      if (docsRes && docsRes.success && docsRes.data) {
+        setDoctorsList(docsRes.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching doctors list:", err);
+    }
+  };
+
   // Fetch Services for Dropdown
   const fetchServicesList = async () => {
     try {
       const servsRes = await getServices({ all: "true" });
       if (servsRes && servsRes.success && servsRes.data) {
-        setServicesList(servsRes.data);
+        setServicesList(servsRes.data || []);
       }
     } catch (err) {
       console.error("Error fetching services:", err);
@@ -79,20 +91,13 @@ export const AppointmentsTable = forwardRef(({
   useEffect(() => {
     if (!formData.serviceId) {
       setFilteredDoctors([]);
-      setFormData((prev) => ({ ...prev, doctorId: "", doctorName: "", time: "" }));
-      setAvailableSlots([]);
       return;
-    }
-
-    const selectedSvc = servicesList.find((s) => (s._id === formData.serviceId || s.id === formData.serviceId || s.slug === formData.serviceId));
-    if (selectedSvc) {
-      setFormData((prev) => ({ ...prev, serviceName: selectedSvc.title }));
     }
 
     const loadDoctorsForService = async () => {
       try {
         const docsRes = await getDoctors({ serviceId: formData.serviceId, all: "true" });
-        if (docsRes && docsRes.success && docsRes.data) {
+        if (docsRes && docsRes.success && docsRes.data && docsRes.data.length > 0) {
           setFilteredDoctors(docsRes.data);
         } else {
           setFilteredDoctors([]);
@@ -104,43 +109,7 @@ export const AppointmentsTable = forwardRef(({
     };
 
     loadDoctorsForService();
-    setFormData((prev) => ({ ...prev, doctorId: "", doctorName: "", time: "" }));
-    setAvailableSlots([]);
-  }, [formData.serviceId, servicesList]);
-
-  // Fetch dynamic available slots when Service, Doctor, and Date are set
-  useEffect(() => {
-    if (!formData.serviceId || !formData.doctorId || !formData.date) {
-      setAvailableSlots([]);
-      return;
-    }
-
-    const fetchDynamicSlots = async () => {
-      setFetchingSlots(true);
-      try {
-        const res = await api.get("/api/appointments/available-slots", {
-          params: {
-            serviceId: formData.serviceId,
-            doctorId: formData.doctorId,
-            date: formData.date
-          }
-        });
-
-        if (res.data && res.data.success) {
-          setAvailableSlots(res.data.data || []);
-        } else {
-          setAvailableSlots([]);
-        }
-      } catch (err) {
-        console.error("Failed to fetch dynamic slots:", err);
-        setAvailableSlots([]);
-      } finally {
-        setFetchingSlots(false);
-      }
-    };
-
-    fetchDynamicSlots();
-  }, [formData.serviceId, formData.doctorId, formData.date]);
+  }, [formData.serviceId]);
 
   const fetchAppointmentList = async () => {
     setIsLoading(true);
@@ -162,6 +131,7 @@ export const AppointmentsTable = forwardRef(({
   };
 
   useEffect(() => {
+    fetchDoctorsList();
     fetchServicesList();
     fetchAppointmentList();
   }, [statusFilter, doctorFilter]);
@@ -188,6 +158,28 @@ export const AppointmentsTable = forwardRef(({
     setValidationError("");
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
+
+  const handleServiceSelectChange = (e) => {
+    const sId = e.target.value;
+    const selectedSvc = servicesList.find((s) => (s._id === sId || s.id === sId || s.slug === sId));
+    setFormData((prev) => ({
+      ...prev,
+      serviceId: sId,
+      serviceName: selectedSvc ? selectedSvc.title : ""
+    }));
+  };
+
+  const handleDoctorSelectChange = (e) => {
+    const dId = e.target.value;
+    const selectedDoc = doctorsList.find((d) => (d._id === dId || d.id === dId || d.slug === dId));
+    setFormData((prev) => ({
+      ...prev,
+      doctorId: dId,
+      doctorName: selectedDoc ? selectedDoc.name : ""
+    }));
+  };
+
+  const displayDoctors = filteredDoctors.length > 0 ? filteredDoctors : doctorsList;
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -256,16 +248,20 @@ export const AppointmentsTable = forwardRef(({
   };
 
   const resetForm = () => {
+    const firstSvc = servicesList[0];
+    const firstDoc = doctorsList[0];
     setFormData({
       patientName: "",
       patientEmail: "",
       patientPhone: "",
       gender: "Female",
       dob: "",
-      doctorName: doctorsList.length > 0 ? doctorsList[0].name : "",
-      serviceName: servicesList.length > 0 ? servicesList[0].title : "",
+      serviceId: firstSvc ? (firstSvc._id || firstSvc.id || firstSvc.slug) : "",
+      serviceName: firstSvc ? firstSvc.title : "",
+      doctorId: firstDoc ? (firstDoc._id || firstDoc.id || firstDoc.slug) : "",
+      doctorName: firstDoc ? firstDoc.name : "",
       date: new Date().toISOString().split("T")[0],
-      time: "10:00 AM",
+      time: "Ticket Reservation",
       notes: ""
     });
     setValidationError("");
@@ -352,7 +348,7 @@ export const AppointmentsTable = forwardRef(({
                 <th className="py-3.5 px-4">Patient</th>
                 <th className="py-3.5 px-4">Practitioner</th>
                 <th className="py-3.5 px-4">Service</th>
-                <th className="py-3.5 px-4">Date & Time</th>
+                <th className="py-3.5 px-4">Date &amp; Ticket #</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -373,8 +369,13 @@ export const AppointmentsTable = forwardRef(({
                   <td className="py-3 px-4 text-on-surface-variant">
                     {apt.serviceName}
                   </td>
-                  <td className="py-3 px-4 font-mono text-on-surface">
-                    {apt.date} at {apt.time}
+                  <td className="py-3 px-4 text-on-surface">
+                    <div className="space-y-0.5">
+                      <span className="font-mono text-xs block">{apt.date}</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-extrabold text-[11px] inline-block">
+                        {apt.time && apt.time.includes("Ticket") ? apt.time : `Ticket #${apt.ticketNumber || 1}`}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-3 px-4">
                     <select
@@ -559,44 +560,40 @@ export const AppointmentsTable = forwardRef(({
                 {/* Appointment Clinical Details */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Select Doctor *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Select Service *</label>
                     <select
-                      id="doctorName"
-                      value={formData.doctorName}
-                      onChange={handleInputChange}
+                      id="serviceId"
+                      value={formData.serviceId}
+                      onChange={handleServiceSelectChange}
                       required
                       className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs font-semibold cursor-pointer"
                     >
-                      {doctorsList.length === 0 ? (
-                        <option value="Dr. Elena Rodriguez">Dr. Elena Rodriguez</option>
-                      ) : (
-                        doctorsList.map((doc) => (
-                          <option key={doc._id || doc.name} value={doc.name}>
-                            {doc.name} ({doc.specialization || doc.category})
-                          </option>
-                        ))
-                      )}
+                      <option value="" disabled>Choose a service...</option>
+                      {servicesList.map((srv) => (
+                        <option key={srv._id || srv.id || srv.slug} value={srv._id || srv.id || srv.slug}>
+                          {srv.title}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Select Service *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Select Doctor *</label>
                     <select
-                      id="serviceName"
-                      value={formData.serviceName}
-                      onChange={handleInputChange}
+                      id="doctorId"
+                      value={formData.doctorId}
+                      onChange={handleDoctorSelectChange}
                       required
                       className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs font-semibold cursor-pointer"
                     >
-                      {servicesList.length === 0 ? (
-                        <option value="Dental Cleaning">Dental Cleaning</option>
-                      ) : (
-                        servicesList.map((srv) => (
-                          <option key={srv._id || srv.title} value={srv.title}>
-                            {srv.title}
-                          </option>
-                        ))
-                      )}
+                      <option value="" disabled>
+                        {displayDoctors.length === 0 ? "Loading doctors..." : "Choose a practitioner..."}
+                      </option>
+                      {displayDoctors.map((doc) => (
+                        <option key={doc._id || doc.id || doc.slug} value={doc._id || doc.id || doc.slug}>
+                          {doc.name} ({doc.specialization || doc.category || "Specialist"})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -614,16 +611,10 @@ export const AppointmentsTable = forwardRef(({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Time Slot *</label>
-                    <input
-                      type="text"
-                      id="time"
-                      value={formData.time}
-                      onChange={handleInputChange}
-                      placeholder="10:00 AM"
-                      required
-                      className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs font-medium"
-                    />
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1 text-primary">Ticket System</label>
+                    <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] font-semibold text-emerald-700">
+                      Sequential Ticket # (e.g. Ticket #1, #2) assigned automatically.
+                    </div>
                   </div>
                 </div>
 
@@ -705,8 +696,10 @@ export const AppointmentsTable = forwardRef(({
                     <span className="font-semibold text-on-surface">{selectedAppointment.serviceName}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Date & Time</span>
-                    <span className="font-mono font-medium text-on-surface">{selectedAppointment.date} at {selectedAppointment.time}</span>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Date &amp; Ticket #</span>
+                    <span className="font-mono font-bold text-emerald-600">
+                      {selectedAppointment.date} — {selectedAppointment.time && selectedAppointment.time.includes("Ticket") ? selectedAppointment.time : `Ticket #${selectedAppointment.ticketNumber || 1}`}
+                    </span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Status</span>
