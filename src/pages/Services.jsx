@@ -308,9 +308,6 @@ export default function Services() {
                             <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold text-[11px]">
                               {svc.duration || 30} mins
                             </span>
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 font-bold text-[11px]">
-                              {svc.dailyTickets || 30} tix/day
-                            </span>
                           </div>
                           <span className="block text-on-surface font-bold">
                             ${svc.price || 0}

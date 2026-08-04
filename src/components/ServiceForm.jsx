@@ -439,7 +439,7 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1 text-on-surface">
                 Estimated Duration (Mins) <span className="text-error">*</span>
@@ -470,23 +470,6 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
                 onChange={handleChange}
                 placeholder="e.g. 150"
                 className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-1 text-on-surface">
-                Daily Tickets Capacity <span className="text-error">*</span>
-              </label>
-              <input
-                type="number"
-                name="dailyTickets"
-                min="1"
-                step="1"
-                value={formData.dailyTickets}
-                onChange={handleChange}
-                placeholder="e.g. 30 or 40"
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-primary"
               />
             </div>
           </div>

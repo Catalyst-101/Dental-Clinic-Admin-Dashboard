@@ -261,7 +261,6 @@ export const AppointmentsTable = forwardRef(({
       doctorId: firstDoc ? (firstDoc._id || firstDoc.id || firstDoc.slug) : "",
       doctorName: firstDoc ? firstDoc.name : "",
       date: new Date().toISOString().split("T")[0],
-      time: "Ticket Reservation",
       notes: ""
     });
     setValidationError("");
@@ -325,7 +324,7 @@ export const AppointmentsTable = forwardRef(({
       {/* Loading state */}
       {isLoading ? (
         <div className="p-4">
-          <SkeletonTable rows={itemsPerPage} cols={7} />
+          <SkeletonTable rows={itemsPerPage} cols={6} />
         </div>
       ) : paginatedAppointments.length === 0 ? (
         /* Empty State */
@@ -348,7 +347,7 @@ export const AppointmentsTable = forwardRef(({
                 <th className="py-3.5 px-4">Patient</th>
                 <th className="py-3.5 px-4">Practitioner</th>
                 <th className="py-3.5 px-4">Service</th>
-                <th className="py-3.5 px-4">Date &amp; Ticket #</th>
+                <th className="py-3.5 px-4">Scheduled Date</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -369,13 +368,8 @@ export const AppointmentsTable = forwardRef(({
                   <td className="py-3 px-4 text-on-surface-variant">
                     {apt.serviceName}
                   </td>
-                  <td className="py-3 px-4 text-on-surface">
-                    <div className="space-y-0.5">
-                      <span className="font-mono text-xs block">{apt.date}</span>
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-extrabold text-[11px] inline-block">
-                        {apt.time && apt.time.includes("Ticket") ? apt.time : `Ticket #${apt.ticketNumber || 1}`}
-                      </span>
-                    </div>
+                  <td className="py-3 px-4 font-mono text-on-surface font-semibold">
+                    {apt.date}
                   </td>
                   <td className="py-3 px-4">
                     <select
@@ -453,7 +447,7 @@ export const AppointmentsTable = forwardRef(({
         </div>
       )}
 
-      {/* CREATE APPOINTMENT MODAL (Includes Patient Auto-Registration & Dynamic Doctor/Service Dropdowns) */}
+      {/* CREATE APPOINTMENT MODAL */}
       {isAddModalOpen &&
         createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
@@ -598,24 +592,16 @@ export const AppointmentsTable = forwardRef(({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Date *</label>
-                    <input
-                      type="date"
-                      id="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs cursor-pointer font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1 text-primary">Ticket System</label>
-                    <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] font-semibold text-emerald-700">
-                      Sequential Ticket # (e.g. Ticket #1, #2) assigned automatically.
-                    </div>
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1">Appointment Date *</label>
+                  <input
+                    type="date"
+                    id="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs cursor-pointer font-medium"
+                  />
                 </div>
 
                 <div>
@@ -665,7 +651,7 @@ export const AppointmentsTable = forwardRef(({
               <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
                 <div>
                   <span className="text-[10px] font-mono font-bold text-primary uppercase">
-                    {selectedAppointment.appointmentId || selectedAppointment.id}
+                    Appt ID: {selectedAppointment.appointmentId || selectedAppointment.id}
                   </span>
                   <h3 className="text-base font-extrabold">{selectedAppointment.patientName}</h3>
                 </div>
@@ -696,10 +682,8 @@ export const AppointmentsTable = forwardRef(({
                     <span className="font-semibold text-on-surface">{selectedAppointment.serviceName}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Date &amp; Ticket #</span>
-                    <span className="font-mono font-bold text-emerald-600">
-                      {selectedAppointment.date} — {selectedAppointment.time && selectedAppointment.time.includes("Ticket") ? selectedAppointment.time : `Ticket #${selectedAppointment.ticketNumber || 1}`}
-                    </span>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Scheduled Date</span>
+                    <span className="font-mono font-bold text-on-surface">{selectedAppointment.date}</span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-on-surface-variant uppercase block">Status</span>
