@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { uploadDoctorImage } from "../api/doctors";
 import { getCategories } from "../api/categories";
 import api, { getFullImageUrl, parseErrorMessage } from "../api/axios";
+import FocalPointEditor from "./FocalPointEditor";
 
 const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -30,6 +31,7 @@ const defaultDoctorState = {
   availability: "",
   languages: "",
   image: "",
+  imageFocalPoint: { x: 50, y: 50 },
   bio: "",
   schedule: [
     { day: "Monday", startTime: "09:00 AM", endTime: "05:00 PM", isWorking: true },
@@ -48,6 +50,7 @@ export default function DoctorForm({ initialData, defaultCategory = "", onSubmit
   const [categoriesList, setCategoriesList] = useState([]);
   const [clinicHours, setClinicHours] = useState([]);
   const [activeTab, setActiveTab] = useState("basic");
+  const [showFocalEditor, setShowFocalEditor] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [validationError, setValidationError] = useState("");
@@ -83,6 +86,7 @@ export default function DoctorForm({ initialData, defaultCategory = "", onSubmit
         availability: initialData.availability || "",
         languages: initialData.languages || "",
         image: initialData.image || "",
+        imageFocalPoint: initialData.imageFocalPoint || { x: 50, y: 50 },
         bio: initialData.bio || "",
         schedule: initialData.schedule && initialData.schedule.length > 0
           ? initialData.schedule.map((s) => ({
@@ -125,6 +129,7 @@ export default function DoctorForm({ initialData, defaultCategory = "", onSubmit
       const res = await uploadDoctorImage(file);
       if (res && res.success && res.url) {
         setFormData((prev) => ({ ...prev, image: res.url }));
+        setShowFocalEditor(true); // Automatically open focal editor on new upload
       } else {
         setUploadError("Failed to upload profile image.");
       }
@@ -415,13 +420,36 @@ export default function DoctorForm({ initialData, defaultCategory = "", onSubmit
             )}
 
             {formData.image && (
-              <div className="mt-3 relative rounded-xl overflow-hidden border border-outline-variant/30 w-32 h-32 bg-surface-container">
-                <img
-                  src={getFullImageUrl(formData.image)}
-                  alt="Doctor preview"
-                  className="w-full h-full object-cover"
-                />
+              <div className="mt-3">
+                <div className="relative rounded-xl overflow-hidden border border-outline-variant/30 w-32 h-32 bg-surface-container">
+                  <img
+                    src={getFullImageUrl(formData.image)}
+                    alt="Doctor preview"
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `${formData.imageFocalPoint.x}% ${formData.imageFocalPoint.y}%` }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFocalEditor(true)}
+                  className="mt-2 text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">crop_free</span>
+                  Edit Focal Point
+                </button>
               </div>
+            )}
+
+            {showFocalEditor && formData.image && (
+              <FocalPointEditor
+                image={formData.image}
+                initialFocalPoint={formData.imageFocalPoint}
+                onSave={(newPoint) => {
+                  setFormData((prev) => ({ ...prev, imageFocalPoint: newPoint }));
+                  setShowFocalEditor(false);
+                }}
+                onCancel={() => setShowFocalEditor(false)}
+              />
             )}
           </div>
         </div>

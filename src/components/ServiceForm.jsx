@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { uploadServiceImage } from "../api/services";
 import { getFullImageUrl, parseErrorMessage } from "../api/axios";
+import FocalPointEditor from "./FocalPointEditor";
 
 // Predefined Icon Selection System (Curated Dental & Healthcare Icons)
 export const PREDEFINED_ICONS = [
@@ -65,6 +66,7 @@ const defaultServiceState = {
   icon: "medical_services",
   summary: "",
   image: "",
+  imageFocalPoint: { x: 50, y: 50 },
   overview: "",
   description: "",
   doctors: [],
@@ -92,6 +94,7 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
   const [formData, setFormData] = useState(defaultServiceState);
   const [doctorsList, setDoctorsList] = useState([]);
   const [activeTab, setActiveTab] = useState("basic");
+  const [showFocalEditor, setShowFocalEditor] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [validationError, setValidationError] = useState("");
@@ -122,6 +125,7 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
         icon: initialData.icon || "medical_services",
         summary: initialData.summary || "",
         image: initialData.image || "",
+        imageFocalPoint: initialData.imageFocalPoint || { x: 50, y: 50 },
         overview: initialData.overview || "",
         description: initialData.description || "",
         doctors: existingDocIds,
@@ -173,6 +177,7 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
       const res = await uploadServiceImage(file);
       if (res && res.success && res.url) {
         setFormData((prev) => ({ ...prev, image: res.url }));
+        setShowFocalEditor(true);
       } else {
         setUploadError("Failed to upload service image to the server.");
       }
@@ -572,17 +577,40 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
             )}
 
             {formData.image && (
-              <div className="mt-3 relative rounded-xl overflow-hidden border border-outline-variant/30 h-44 bg-surface-container">
-                <img
-                  src={getFullImageUrl(formData.image)}
-                  alt="Service preview"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>Image Uploaded ({formData.image})</span>
+              <div className="mt-3">
+                <div className="relative rounded-xl overflow-hidden border border-outline-variant/30 h-44 bg-surface-container">
+                  <img
+                    src={getFullImageUrl(formData.image)}
+                    alt="Service preview"
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `${formData.imageFocalPoint.x}% ${formData.imageFocalPoint.y}%` }}
+                  />
+                  <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Image Uploaded ({formData.image})</span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFocalEditor(true)}
+                  className="mt-2 text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">crop_free</span>
+                  Edit Focal Point
+                </button>
               </div>
+            )}
+
+            {showFocalEditor && formData.image && (
+              <FocalPointEditor
+                image={formData.image}
+                initialFocalPoint={formData.imageFocalPoint}
+                onSave={(newPoint) => {
+                  setFormData((prev) => ({ ...prev, imageFocalPoint: newPoint }));
+                  setShowFocalEditor(false);
+                }}
+                onCancel={() => setShowFocalEditor(false)}
+              />
             )}
           </div>
         </div>
