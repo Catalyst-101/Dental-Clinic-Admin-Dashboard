@@ -92,9 +92,18 @@ const TopBar = ({
   return (
     <header className="flex justify-between items-center px-6 py-2 sticky top-0 bg-surface-container-lowest/80 backdrop-blur-xl border-b border-surface-container-highest z-30 select-none">
       
-      {/* Search Input Bar */}
-      <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2 w-96 transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 border border-transparent focus-within:border-outline-variant/30">
-        <span className="material-symbols-outlined text-on-surface-variant text-[20px] select-none">
+      {/* Mobile Toggle & Search Input Bar */}
+      <div className="flex items-center gap-3 flex-1">
+        <button 
+          onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
+          className="md:hidden p-2 -ml-2 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant flex items-center justify-center cursor-pointer"
+          aria-label="Toggle Sidebar"
+        >
+          <span className="material-symbols-outlined text-[24px]">menu</span>
+        </button>
+
+        <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2 w-full max-w-xs sm:max-w-md lg:max-w-[24rem] transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 border border-transparent focus-within:border-outline-variant/30">
+          <span className="material-symbols-outlined text-on-surface-variant text-[20px] select-none">
           search
         </span>
         <input 
@@ -104,6 +113,7 @@ const TopBar = ({
           onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
           className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-label-md w-full ml-2 text-on-surface placeholder:text-on-surface-variant/50"
         />
+        </div>
       </div>
 
       {/* Action Controls & Admin Profile */}

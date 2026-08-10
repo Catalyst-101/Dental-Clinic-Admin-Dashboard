@@ -54,7 +54,7 @@ const Layout = () => {
         onNewAppointment={handleNewAppointment}
       />
 
-      <main className="main-content flex-grow ml-64 min-h-screen flex flex-col">
+      <main className="main-content flex-grow ml-0 md:ml-64 min-h-screen flex flex-col w-full md:w-auto">
         <Routes>
           {/* Smart redirect */}
           <Route

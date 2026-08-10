@@ -1,9 +1,29 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export const Sidebar = ({ onLogout }) => {
     const navigate = useNavigate();
     const location = useLocation();
+
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        const handleToggle = () => setIsOpen((prev) => !prev);
+        const handleClose = () => setIsOpen(false);
+
+        window.addEventListener("toggle-sidebar", handleToggle);
+        window.addEventListener("close-sidebar", handleClose);
+
+        return () => {
+            window.removeEventListener("toggle-sidebar", handleToggle);
+            window.removeEventListener("close-sidebar", handleClose);
+        };
+    }, []);
+
+    // Close sidebar on route change
+    useEffect(() => {
+        setIsOpen(false);
+    }, [location.pathname]);
 
     const activeItem = location.pathname.replace("/", "") || "dashboard";
 
@@ -95,7 +115,16 @@ export const Sidebar = ({ onLogout }) => {
     }
 
     return (
-        <aside className="h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex flex-col py-6 border-r border-outline-variant/30 z-40 shadow-sm select-none">
+        <>
+            {/* Mobile Backdrop */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
+
+            <aside className={`fixed left-0 top-0 h-screen w-64 bg-surface-container-low flex flex-col py-6 border-r border-outline-variant/30 z-50 shadow-sm select-none transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
 
             {/* Brand Header */}
             <div className="px-6 mb-8">
@@ -165,5 +194,6 @@ export const Sidebar = ({ onLogout }) => {
             </div>
 
         </aside>
+        </>
     );
 };
