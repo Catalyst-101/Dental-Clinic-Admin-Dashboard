@@ -189,6 +189,7 @@ export default function Doctors({ defaultCategory = "All" }) {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search doctors, specializations, credentials..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

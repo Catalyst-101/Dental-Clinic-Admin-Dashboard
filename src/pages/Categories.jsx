@@ -144,6 +144,7 @@ export default function Categories() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search staff categories..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

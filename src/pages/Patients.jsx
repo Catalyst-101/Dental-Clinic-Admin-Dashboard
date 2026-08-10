@@ -59,6 +59,7 @@ export default function Patients() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search patients by name, ID, contact..."
+        searchValue={searchTerm}
         onSearchChange={(val) => {
           setSearchTerm(val);
         }}

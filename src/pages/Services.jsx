@@ -167,6 +167,7 @@ export default function Services() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search services, taglines..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

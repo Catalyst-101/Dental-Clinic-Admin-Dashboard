@@ -202,7 +202,11 @@ export default function WebsiteContent() {
 
   return (
     <div className="flex flex-col flex-grow w-full">
-      <TopBar placeholder="Search website content items..." />
+      <TopBar 
+        placeholder="Search website content items..." 
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
 
       <div className="p-gutter w-full space-y-gutter flex-grow pb-32">
         {/* Page Header */}
@@ -256,7 +260,7 @@ export default function WebsiteContent() {
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {stats.map((stat) => (
+                  {stats.filter(s => s.label.toLowerCase().includes(searchTerm.toLowerCase()) || String(s.value).toLowerCase().includes(searchTerm.toLowerCase())).map((stat) => (
                     <div key={stat.id} className="bg-surface-container-low border border-outline-variant/30 p-4 rounded-xl space-y-3 shadow-xs">
                       <div className="space-y-1">
                         <label className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-wide">Stat Value</label>
@@ -306,7 +310,7 @@ export default function WebsiteContent() {
                 </div>
 
                 <div className="space-y-3">
-                  {testimonials.map((t) => (
+                  {testimonials.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.comment.toLowerCase().includes(searchTerm.toLowerCase())).map((t) => (
                     <div key={t.id} className="bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
                       <div className="flex items-center sm:items-start gap-4 flex-grow text-left">
                         <img
@@ -429,7 +433,7 @@ export default function WebsiteContent() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {gallery.map((img) => (
+                  {gallery.filter(img => img.tag.toLowerCase().includes(searchTerm.toLowerCase()) || img.caption.toLowerCase().includes(searchTerm.toLowerCase())).map((img) => (
                     <div key={img.id} className="relative rounded-xl overflow-hidden group border border-outline-variant/30 h-40 select-none">
                       <img 
                         src={img.url.startsWith("/uploads") 

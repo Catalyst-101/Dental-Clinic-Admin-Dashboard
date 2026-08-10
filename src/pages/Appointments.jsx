@@ -37,6 +37,7 @@ export default function Appointments() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search appointments, patients, doctors..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

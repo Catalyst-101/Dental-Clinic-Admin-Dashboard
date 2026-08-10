@@ -239,6 +239,7 @@ export default function Admins() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search administrators..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

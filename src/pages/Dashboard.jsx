@@ -15,6 +15,8 @@ export const Dashboard = () => {
     newContactMessages: 0
   });
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [statsError, setStatsError] = useState("");
 
@@ -41,7 +43,11 @@ export const Dashboard = () => {
 
   return (
     <div className="flex flex-col flex-grow w-full">
-      <TopBar placeholder="Search patients, records..." />
+      <TopBar 
+        placeholder="Search patients, records..." 
+        searchValue={searchTerm}
+        onSearchChange={(val) => setSearchTerm(val)}
+      />
 
       <div className="p-gutter w-full space-y-gutter flex-grow">
         <div className="header-bar flex items-end justify-between flex-wrap gap-4 border-b border-outline-variant/20 pb-4 select-none">
@@ -112,8 +118,12 @@ export const Dashboard = () => {
           )}
 
           <div className="gap-md items-start">
-            <div className="w-full">
-              <AppointmentsTable isDashboard={true} />
+            <div className="recent-appointments">
+              <AppointmentsTable 
+                isDashboard={true}
+                hideInnerBookButton={true} 
+                searchTerm={searchTerm}
+              />
             </div>
           </div>
         </div>

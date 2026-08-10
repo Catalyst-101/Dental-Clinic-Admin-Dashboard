@@ -85,6 +85,7 @@ export default function ContactMessages() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar
         placeholder="Search contact messages..."
+        searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 

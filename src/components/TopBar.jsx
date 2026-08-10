@@ -9,7 +9,8 @@ const TopBar = ({
   adminName, 
   role, 
   avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh",
-  onSearchChange
+  onSearchChange,
+  searchValue = ""
 }) => {
   const navigate = useNavigate();
   const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
@@ -98,7 +99,8 @@ const TopBar = ({
         </span>
         <input 
           type="text" 
-          placeholder={placeholder} 
+          placeholder={placeholder}
+          value={searchValue} 
           onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
           className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-label-md w-full ml-2 text-on-surface placeholder:text-on-surface-variant/50"
         />
