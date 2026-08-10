@@ -82,7 +82,8 @@ const defaultServiceState = {
   ],
   recovery: {
     intro: "",
-    tips: [{ icon: "restaurant", text: "" }]
+    tips: [{ icon: "restaurant", text: "" }],
+    image: ""
   },
   faqs: [
     { question: "", answer: "" }
@@ -96,7 +97,9 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
   const [activeTab, setActiveTab] = useState("basic");
   const [showFocalEditor, setShowFocalEditor] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingRecoveryImage, setIsUploadingRecoveryImage] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [uploadRecoveryError, setUploadRecoveryError] = useState("");
   const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
@@ -145,7 +148,8 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
           intro: (initialData.recovery && initialData.recovery.intro) || "",
           tips: (initialData.recovery && initialData.recovery.tips && initialData.recovery.tips.length > 0)
             ? initialData.recovery.tips
-            : [{ icon: "restaurant", text: "" }]
+            : [{ icon: "restaurant", text: "" }],
+          image: (initialData.recovery && initialData.recovery.image) || ""
         },
         faqs: initialData.faqs && initialData.faqs.length > 0
           ? initialData.faqs
@@ -187,6 +191,34 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
       setUploadError(friendly);
     } finally {
       setIsUploadingImage(false);
+    }
+  };
+
+  // Backend File Recovery Image Upload Handler
+  const handleRecoveryImageFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploadingRecoveryImage(true);
+    setUploadRecoveryError("");
+    setValidationError("");
+
+    try {
+      const res = await uploadServiceImage(file);
+      if (res && res.success && res.url) {
+        setFormData((prev) => ({
+          ...prev,
+          recovery: { ...prev.recovery, image: res.url }
+        }));
+      } else {
+        setUploadRecoveryError("Failed to upload recovery image to the server.");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      const friendly = parseErrorMessage(err, "Failed to upload recovery image to backend.");
+      setUploadRecoveryError(friendly);
+    } finally {
+      setIsUploadingRecoveryImage(false);
     }
   };
 
@@ -354,7 +386,8 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
       steps: formData.steps.filter((s) => s.title.trim()),
       recovery: {
         intro: formData.recovery.intro.trim(),
-        tips: formData.recovery.tips.filter((t) => t.text.trim())
+        tips: formData.recovery.tips.filter((t) => t.text.trim()),
+        image: formData.recovery.image || ""
       },
       faqs: formData.faqs.filter((f) => f.question.trim() && f.answer.trim())
     };
@@ -841,6 +874,50 @@ export default function ServiceForm({ initialData, onSubmit, onCancel, isSubmitt
               placeholder="e.g. No downtime needed! You can return to daily activities immediately."
               className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-sm"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-1 text-on-surface">
+              Post-Treatment Care Image
+            </label>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary font-bold text-xs cursor-pointer hover:bg-primary/20 transition-all">
+                <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
+                <span>{formData.recovery.image ? "Change Image File" : "Choose Image File"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleRecoveryImageFileChange}
+                  className="hidden"
+                />
+              </label>
+
+              {isUploadingRecoveryImage && (
+                <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                  <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                  <span>Uploading image to server...</span>
+                </div>
+              )}
+            </div>
+
+            {uploadRecoveryError && (
+              <p className="text-xs text-error mt-1.5 font-semibold">{uploadRecoveryError}</p>
+            )}
+
+            {formData.recovery.image && (
+              <div className="mt-3 relative rounded-xl overflow-hidden border border-outline-variant/30 h-44 bg-surface-container w-full max-w-sm">
+                <img
+                  src={getFullImageUrl(formData.recovery.image)}
+                  alt="Recovery preview"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Image Uploaded</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-2">
