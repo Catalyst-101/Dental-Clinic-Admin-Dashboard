@@ -10,7 +10,8 @@ const TopBar = ({
   role, 
   avatarUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuClAoOwWiTNglQ5J0I82BtqM6ngI5baNAT8phZkSylKmwYpkZhNhb_a9ybUP45ui6oUc0gqZA2KCJCIKFVdkTqfVzQ8OZr8FNLcDKOagax0IH9Tl554cqfZs39uPxj_1oecIcZ6vncb-n24oUU2W5XZvOP_Vw29D6DtpqsgOLPh3avDzp2RGuBdDMUm-bEbM1OwqB2HNF6Ar6WXnvr3lp77Jk_VQ0IsWpSw7dqGbRA91mUXWiiCBgUDC22Vhs8BJNcoSHVReLQ5lMoh",
   onSearchChange,
-  searchValue = ""
+  searchValue = "",
+  hideSearch = false
 }) => {
   const navigate = useNavigate();
   const storedUserJson = localStorage.getItem("user") || sessionStorage.getItem("user");
@@ -102,18 +103,20 @@ const TopBar = ({
           <span className="material-symbols-outlined text-[24px]">menu</span>
         </button>
 
-        <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2 w-full max-w-xs sm:max-w-md lg:max-w-[24rem] transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 border border-transparent focus-within:border-outline-variant/30">
-          <span className="material-symbols-outlined text-on-surface-variant text-[20px] select-none">
-          search
-        </span>
-        <input 
-          type="text" 
-          placeholder={placeholder}
-          value={searchValue} 
-          onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-          className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-label-md w-full ml-2 text-on-surface placeholder:text-on-surface-variant/50"
-        />
-        </div>
+        {!hideSearch && (
+          <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2 w-full max-w-xs sm:max-w-md lg:max-w-[24rem] transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 border border-transparent focus-within:border-outline-variant/30">
+            <span className="material-symbols-outlined text-on-surface-variant text-[20px] select-none">
+              search
+            </span>
+            <input 
+              type="text" 
+              placeholder={placeholder}
+              value={searchValue} 
+              onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+              className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-label-md w-full ml-2 text-on-surface placeholder:text-on-surface-variant/50"
+            />
+          </div>
+        )}
       </div>
 
       {/* Action Controls & Admin Profile */}

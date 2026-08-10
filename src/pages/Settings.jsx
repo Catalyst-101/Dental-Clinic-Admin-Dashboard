@@ -46,7 +46,6 @@ export default function Settings() {
     email: "",
     googleMapUrl: ""
   });
-  const [searchTerm, setSearchTerm] = useState("");
   const [socialSettings, setSocialSettings] = useState({
     whatsApp: "",
     facebook: "",
@@ -368,8 +367,7 @@ export default function Settings() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar 
         placeholder="Search settings..." 
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
+        hideSearch={true}
       />
 
       <div className="p-gutter w-full space-y-gutter flex-grow pb-32">

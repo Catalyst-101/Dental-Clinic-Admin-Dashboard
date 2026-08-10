@@ -23,9 +23,7 @@ export default function WebsiteContent() {
     { id: 3, label: "Expert Dentists", value: "45+" },
     { id: 4, label: "Successful Procedures", value: "98%" }
   ]);
-
   const [testimonials, setTestimonials] = useState([]);
-
   const [gallery, setGallery] = useState([]);
 
   // Modal states
@@ -204,8 +202,7 @@ export default function WebsiteContent() {
     <div className="flex flex-col flex-grow w-full">
       <TopBar 
         placeholder="Search website content items..." 
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
+        hideSearch={true}
       />
 
       <div className="p-gutter w-full space-y-gutter flex-grow pb-32">
@@ -260,7 +257,7 @@ export default function WebsiteContent() {
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {stats.filter(s => s.label.toLowerCase().includes(searchTerm.toLowerCase()) || String(s.value).toLowerCase().includes(searchTerm.toLowerCase())).map((stat) => (
+                  {stats.map((stat) => (
                     <div key={stat.id} className="bg-surface-container-low border border-outline-variant/30 p-4 rounded-xl space-y-3 shadow-xs">
                       <div className="space-y-1">
                         <label className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-wide">Stat Value</label>
@@ -310,7 +307,7 @@ export default function WebsiteContent() {
                 </div>
 
                 <div className="space-y-3">
-                  {testimonials.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.comment.toLowerCase().includes(searchTerm.toLowerCase())).map((t) => (
+                  {testimonials.map((t) => (
                     <div key={t.id} className="bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
                       <div className="flex items-center sm:items-start gap-4 flex-grow text-left">
                         <img
@@ -433,7 +430,7 @@ export default function WebsiteContent() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {gallery.filter(img => img.tag.toLowerCase().includes(searchTerm.toLowerCase()) || img.caption.toLowerCase().includes(searchTerm.toLowerCase())).map((img) => (
+                  {gallery.map((img) => (
                     <div key={img.id} className="relative rounded-xl overflow-hidden group border border-outline-variant/30 h-40 select-none">
                       <img 
                         src={img.url.startsWith("/uploads") 
