@@ -12,6 +12,7 @@ import Settings from "../pages/Settings";
 import Admins from "../pages/Admins";
 import Categories from "../pages/Categories";
 import ContactMessages from "../pages/ContactMessages";
+import NotFound from "../pages/NotFound";
 
 // Helper function to get authentication token
 const getToken = () => {
@@ -135,7 +136,7 @@ const Layout = () => {
             path="*"
             element={
               getToken()
-                ? <Navigate to="/dashboard" replace />
+                ? <NotFound />
                 : <Navigate to="/login" replace />
             }
           />
